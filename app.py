@@ -3915,15 +3915,37 @@ MANIFEST_JSON = {
     "background_color": "#352D27",
     "theme_color": "#352D27",
     "orientation": "portrait",
+    "id": "/",
+    "scope": "/",
     "icons": [
-        {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
-        {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
+        {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+        {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+        {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable"},
+        {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
     ]
 }
 
 @app.route('/manifest.json')
 def manifest():
-    return jsonify(MANIFEST_JSON)
+    resp = jsonify(MANIFEST_JSON)
+    resp.mimetype = 'application/manifest+json'
+    resp.headers['Cache-Control'] = 'no-cache'
+    return resp
+
+# Service worker: Chrome/Android'in uygulamayi gercek PWA (WebAPK) olarak kurmasi icin gerekir.
+# Bilerek hicbir istegi yakalamaz/onbellege almaz: sohbet akisi (SSE), API ve sayfa her zaman
+# dogrudan agdan gelir, yani mevcut davranis aynen korunur. Kokten (/sw.js) servis edilir ki
+# kapsami tum siteyi (/) kapsasin.
+SW_JS = """// Karar Asistanim - minimal service worker (onbellek yok, istek yakalama yok)
+self.addEventListener('install', function (event) { self.skipWaiting(); });
+self.addEventListener('activate', function (event) { event.waitUntil(self.clients.claim()); });
+self.addEventListener('fetch', function (event) { /* ag davranisina dokunma */ });
+"""
+
+@app.route('/sw.js')
+def service_worker():
+    return Response(SW_JS, mimetype='application/javascript',
+                    headers={'Cache-Control': 'no-cache', 'Service-Worker-Allowed': '/'})
 
 @app.route('/icon-192.png')
 def icon_192():
@@ -8064,6 +8086,13 @@ document.addEventListener('DOMContentLoaded', function() {
   switchChat(currentChatId);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(syncModelPill);
 });
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    try { navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () {}); } catch (e) {}
+  });
+}
 </script>
 </body>
 </html>
