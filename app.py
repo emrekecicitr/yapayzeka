@@ -4058,19 +4058,22 @@ html, body { height: 100%; background: var(--obsidian); color: var(--ivory); fon
 .header-brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .header-brand .seal { width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #4a3f36, #231d18 70%); border: 1px solid #BFA68A; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 1px rgba(191,166,138,0.15), 0 0 12px rgba(191,166,138,0.12); font-family: 'Fraunces', serif; font-style: italic; font-weight: 500; font-size: 13px; color: #D3BC9F; line-height: 1; }
 .header-brand-text { min-width: 0; line-height: 1.2; }
-.hdr-clock { display: flex; align-items: center; gap: 11px; min-width: 0; }
-.hdr-clock-sep { width: 1px; height: 26px; flex-shrink: 0; background: linear-gradient(to bottom, transparent, rgba(191,166,138,0.45), transparent); }
-.hdr-clock-body { display: flex; flex-direction: column; justify-content: center; gap: 1px; min-width: 0; overflow: hidden; line-height: 1.35; cursor: default; user-select: none; -webkit-user-select: none; }
-.hdr-clock-date { font-family: 'Manrope', sans-serif; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #D3BC9F; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 0 14px rgba(191,166,138,0.25); }
-.hdr-clock-date .dot { display: inline-block; width: 2px; height: 2px; border-radius: 50%; background: #BFA68A; opacity: 0.7; margin: 0 6px; vertical-align: middle; }
-.hdr-clock-date .wd { color: #A99C8C; text-shadow: none; }
-.hdr-wx { display: flex; align-items: center; gap: 5px; min-width: 0; font-family: 'Manrope', sans-serif; font-size: 9.5px; font-weight: 600; letter-spacing: 0.04em; color: #A99C8C; white-space: nowrap; transition: opacity .35s ease; }
+.hdr-clock { display: flex; align-items: center; align-self: center; min-width: 0; height: 34px; }
+.hdr-wx { position: relative; box-sizing: border-box; height: 34px; display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; padding: 0 14px 0 3px; border-radius: 999px; background: linear-gradient(135deg, rgba(250,249,245,0.08), rgba(250,249,245,0.025)); border: 1px solid rgba(250,249,245,0.10); box-shadow: 0 3px 10px rgba(0,0,0,0.22), inset 0 1px 0 rgba(250,249,245,0.07); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); font-family: 'Manrope', sans-serif; color: #9C9A92; white-space: nowrap; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; transition: opacity .35s ease, transform .15s ease, border-color .25s ease; }
+.hdr-wx:active { transform: scale(0.97); border-color: rgba(232,144,111,0.35); }
 .hdr-wx.is-loading { opacity: 0.6; }
-.hdr-wx svg { width: 10px; height: 10px; flex-shrink: 0; fill: none; stroke: #BFA68A; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; opacity: 0.9; }
-.hdr-wx-place { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.hdr-wx-dot { width: 2px; height: 2px; border-radius: 50%; background: #BFA68A; opacity: 0.7; flex-shrink: 0; margin: 0 1px; }
-.hdr-wx-temp { flex-shrink: 0; color: #D3BC9F; letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
-@media (max-width: 340px) { .hdr-clock-date .wd, .hdr-clock-date .dot { display: none; } }
+.hdr-wx.no-ico { padding-left: 14px; }
+.hdr-wx.no-ico .hdr-wx-ico { display: none; }
+.hdr-wx-ico { flex-shrink: 0; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 14px; line-height: 1; letter-spacing: 0; font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; background: radial-gradient(circle at 35% 28%, rgba(232,144,111,0.30), rgba(217,119,87,0.07) 72%); box-shadow: inset 0 0 0 1px rgba(232,144,111,0.22), 0 0 14px rgba(217,119,87,0.18); }
+.hdr-wx-txt { display: flex; flex-direction: row; align-items: center; gap: 8px; min-width: 0; line-height: 1; }
+.hdr-wx-temp { font-family: 'Fraunces', Georgia, serif; font-size: 15px; font-weight: 500; letter-spacing: 0.01em; color: #FAF9F5; font-variant-numeric: tabular-nums; }
+.hdr-wx-temp { flex-shrink: 0; }
+.hdr-wx-temp:empty { display: none; }
+.hdr-wx-temp:not(:empty) + .hdr-wx-desc:not(:empty)::before { content: ''; display: inline-block; width: 1px; height: 11px; margin-right: 8px; vertical-align: middle; background: rgba(250,249,245,0.20); }
+.hdr-wx-temp .u { font-size: 10px; font-weight: 500; color: #C2C0B6; margin-left: 1px; position: relative; top: -3px; }
+.hdr-wx-desc { min-width: 0; font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #9C9A92; overflow: hidden; text-overflow: ellipsis; }
+.hdr-wx-desc:empty { display: none; }
+.hdr-wx.is-msg .hdr-wx-desc { font-size: 10.5px; font-weight: 600; letter-spacing: 0.02em; text-transform: none; }
 .header-brand-title { font-family: 'Fraunces', serif; font-size: 11px; font-weight: 600; letter-spacing: 0.03em; color: #BFA68A; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .header-brand-text .sub { display: block; font-family: 'Manrope', sans-serif; font-size: 9px; letter-spacing: 0.12em; color: var(--meta-bright); text-transform: uppercase; margin-top: 1px; font-weight: 500; }
 .header-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
@@ -4430,9 +4433,6 @@ html, body { background: #2B2B29; }
 .pulse-orb { background: transparent; border: none; color: #D97757; box-shadow: none; }
 .welcome-title { font-family: 'Fraunces', Georgia, serif; font-weight: 400; color: #FAF9F5; text-shadow: none; }
 .welcome-subtitle { color: #9C9A92; }
-.hdr-clock-date { color: #C2C0B6; text-shadow: none; }
-.hdr-clock-date .wd { color: #9C9A92; }
-.hdr-clock-sep { background: linear-gradient(to bottom, transparent, rgba(194,192,182,0.35), transparent); }
 .bubble.user-bubble { background: #343432; border-color: transparent; color: #FAF9F5; }
 .bubble.ai-bubble { font-family: 'Fraunces', Georgia, serif; font-weight: 400; color: #FAF9F5; }
 .bubble.ai-bubble h1, .bubble.ai-bubble h2, .bubble.ai-bubble h3 { border-left-color: transparent; }
@@ -4547,16 +4547,13 @@ html, body { background: #2B2B29; }
     <header class="header">
       <div class="header-left">
         <button class="sidebar-toggle" onclick="toggleSidebar()" id="sidebarToggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg></button>
-        <div class="hdr-clock" id="hdrClock" lang="tr" aria-label="Tarih, konum ve sıcaklık">
-          <span class="hdr-clock-sep" aria-hidden="true"></span>
-          <div class="hdr-clock-body">
-            <div class="hdr-clock-date" id="hdrClockDate"></div>
-            <div class="hdr-wx is-loading" id="hdrWx">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.4"/></svg>
-              <span class="hdr-wx-place" id="hdrWxPlace">Konum aranıyor…</span>
-              <span class="hdr-wx-dot" id="hdrWxDot" style="display:none"></span>
+        <div class="hdr-clock" id="hdrClock" lang="tr">
+          <div class="hdr-wx is-loading no-ico is-msg" id="hdrWx" role="button" aria-label="Hava durumu">
+            <span class="hdr-wx-ico" id="hdrWxIco" aria-hidden="true"></span>
+            <span class="hdr-wx-txt">
               <span class="hdr-wx-temp" id="hdrWxTemp"></span>
-            </div>
+              <span class="hdr-wx-desc" id="hdrWxDesc">Hava durumu alınıyor…</span>
+            </span>
           </div>
         </div>
       </div>
@@ -6310,31 +6307,15 @@ document.addEventListener('keydown', function (e) {
 });
 
 // ============================================
-// ÜST BAR: CANLI TARİH + OTOMATİK KONUM VE SICAKLIK
+// ÜST BAR: CANLI TARİH + ANLIK HAVA DURUMU (ikon + sıcaklık + durum)
 // ============================================
 (function () {
-  var MONTHS = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
-  var DAYS = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
   var CACHE_KEY = 'ai_hdr_wx_v2';   // v2: eski (yanlis "Hessen" gibi) onbellek sonuclari atilir
   var REFRESH_MS = 10 * 60 * 1000;   // konum + sicaklik 10 dakikada bir tazelenir
   var RETRY_MS = 60 * 1000;          // basarisizsa en erken 1 dakika sonra tekrar dener
-  var lastDateKey = '', lastOk = 0, lastTry = 0, fetching = false, shown = false;
+  var lastOk = 0, lastTry = 0, fetching = false, shown = false;
 
   function $(id) { return document.getElementById(id); }
-
-  // ---- Tarih (gece yarisi kendiliginden degisir) ----
-  function renderDate() {
-    try {
-      var el = $('hdrClockDate');
-      if (!el) return;
-      var d = new Date();
-      var key = d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate();
-      if (key === lastDateKey) return;
-      lastDateKey = key;
-      el.innerHTML = d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear() +
-        '<span class="dot"></span><span class="wd">' + DAYS[d.getDay()] + '</span>';
-    } catch (e) {}
-  }
 
   // ---- Konum + sicaklik gosterimi ----
   function fmtTemp(t) {
@@ -6352,11 +6333,33 @@ document.addEventListener('keydown', function (e) {
       }).join('-');
     }).join(' ');
   }
-  function placeText(d) {
-    var parts = [];
-    if (d.district) parts.push(titleTr(d.district));
-    if (d.city && d.city !== d.district) parts.push(titleTr(d.city));
-    return parts.join(', ');
+  // WMO hava kodu -> ikon + Turkce aciklama (gece/gunduz duyarli).
+  function wxInfo(code, day) {
+    if (code === null || code === undefined) return null;
+    code = Number(code);
+    if (!isFinite(code)) return null;
+    var D = day !== false;
+    if (code === 0) return { i: D ? '☀️' : '🌙', l: 'Açık' };
+    if (code === 1) return { i: D ? '🌤️' : '🌙', l: 'Az Bulutlu' };
+    if (code === 2) return { i: D ? '⛅' : '☁️', l: 'Parçalı Bulutlu' };
+    if (code === 3) return { i: '☁️', l: 'Kapalı' };
+    if (code === 45 || code === 48) return { i: '🌫️', l: 'Sisli' };
+    if (code >= 51 && code <= 55) return { i: '🌦️', l: 'Çiseleme' };
+    if (code === 56 || code === 57 || code === 66 || code === 67) return { i: '🌨️', l: 'Karla Karışık Yağmur' };
+    if (code === 61) return { i: '🌧️', l: 'Hafif Yağmurlu' };
+    if (code === 63) return { i: '🌧️', l: 'Yağmurlu' };
+    if (code === 65) return { i: '🌧️', l: 'Şiddetli Yağmur' };
+    if (code === 71) return { i: '🌨️', l: 'Hafif Karlı' };
+    if (code === 73) return { i: '❄️', l: 'Karlı' };
+    if (code === 75) return { i: '❄️', l: 'Yoğun Kar' };
+    if (code === 77) return { i: '🌨️', l: 'Kar Taneleri' };
+    if (code === 80) return { i: '🌦️', l: 'Hafif Sağanak' };
+    if (code === 81) return { i: '🌧️', l: 'Sağanak Yağış' };
+    if (code === 82) return { i: '🌧️', l: 'Şiddetli Sağanak' };
+    if (code === 85 || code === 86) return { i: '🌨️', l: 'Kar Sağanağı' };
+    if (code === 95) return { i: '⛈️', l: 'Gök Gürültülü Fırtına' };
+    if (code === 96 || code === 99) return { i: '⛈️', l: 'Dolulu Fırtına' };
+    return null;
   }
   function renderWx(d) {
     try {
@@ -6365,23 +6368,27 @@ document.addEventListener('keydown', function (e) {
       refreshWelcomeWx();
     } catch (e) {}
     try {
-      var box = $('hdrWx'), pEl = $('hdrWxPlace'), tEl = $('hdrWxTemp'), dot = $('hdrWxDot');
-      if (!box || !pEl || !tEl || !dot) return;
-      var place = placeText(d), temp = fmtTemp(d.temp);
-      pEl.textContent = place || 'Konum';
-      tEl.textContent = temp;
-      dot.style.display = (place && temp) ? '' : 'none';
-      box.classList.remove('is-loading');
-      box.title = (place ? place : '') + (temp ? ' · ' + temp : '');
+      var box = $('hdrWx'), ico = $('hdrWxIco'), tEl = $('hdrWxTemp'), dEl = $('hdrWxDesc');
+      if (!box || !ico || !tEl || !dEl) return;
+      var w = d.wx || {};
+      var tv = (d.temp !== null && d.temp !== undefined) ? d.temp : w.t;
+      var temp = fmtTemp(tv);
+      var info = wxInfo(w.code, w.day);
+      if (!temp && !info) return;
+      ico.textContent = info ? info.i : '🌡️';
+      tEl.innerHTML = temp ? (temp.slice(0, -2) + '<span class="u">' + temp.slice(-2) + '</span>') : '';
+      dEl.textContent = info ? info.l : '';
+      box.classList.remove('is-loading', 'no-ico', 'is-msg');
+      box.title = (temp ? temp : '') + (temp && info ? ', ' : '') + (info ? info.l : '');
       shown = true;
     } catch (e) {}
   }
   function showMsg(msg) {
-    var box = $('hdrWx'), pEl = $('hdrWxPlace'), tEl = $('hdrWxTemp'), dot = $('hdrWxDot');
-    if (!box || !pEl) return;
-    pEl.textContent = msg;
+    var box = $('hdrWx'), tEl = $('hdrWxTemp'), dEl = $('hdrWxDesc');
+    if (!box || !dEl) return;
     if (tEl) tEl.textContent = '';
-    if (dot) dot.style.display = 'none';
+    dEl.textContent = msg;
+    box.classList.add('no-ico', 'is-msg');
     box.classList.remove('is-loading');
   }
   function saveCache(d) {
@@ -6488,7 +6495,7 @@ document.addEventListener('keydown', function (e) {
       var pos = await locate();
       if (!pos) {
         // Konum alinamadi: yanlis bir yer gostermek yerine (varsa) onceki dogru sonucu koru.
-        if (!shown) showMsg('Konum izni gerekli · dokun');
+        if (!shown) showMsg('Hava durumu için konum izni · dokun');
         return;
       }
       var url = '/api/weather?lat=' + pos.lat.toFixed(5) + '&lon=' + pos.lon.toFixed(5);
@@ -6511,25 +6518,24 @@ document.addEventListener('keydown', function (e) {
         renderWx(d);
         saveCache(d);
       } else if (!shown) {
-        showMsg('Konum alınamadı');
+        showMsg('Hava durumu alınamadı · dokun');
       }
     } catch (e) {
-      if (!shown) showMsg('Konum alınamadı');
+      if (!shown) showMsg('Hava durumu alınamadı · dokun');
     } finally {
       fetching = false;
     }
   }
 
   function init() {
-    renderDate();
     var c = loadCache();
     if (c) renderWx(c);           // onceki sonuc aninda gorunur, arkada tazelenir
     var wxBox = $('hdrWx');
     if (wxBox) wxBox.addEventListener('click', function () { refreshWx(true); });   // dokununca konumu yeniden dene
     refreshWx(true);
-    setInterval(function () { renderDate(); refreshWx(false); }, 20000);
+    setInterval(function () { refreshWx(false); }, 20000);
     document.addEventListener('visibilitychange', function () {
-      if (!document.hidden) { renderDate(); refreshWx(false); }
+      if (!document.hidden) { refreshWx(false); }
     });
     window.addEventListener('online', function () { refreshWx(true); });
   }
