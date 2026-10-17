@@ -775,41 +775,136 @@ def parse_ara_komutu(text):
 UZMAN_MODLARI = {
     'hukuk': {
         'ad': 'Hukuk', 'gorev': 'analiz', 'rol': 'kıdemli bir Türk hukuku avukatı',
+        # Otomatik modda bu alan once GPT-OSS 120B ile calisir (digerleri yedek). Gorsel ve elle secilen model bunu EZER.
+        # Bu model dusunme tokenlarini da butceden harcadigi icin butce 8192 (saglayici reddederse 4096'ya otomatik doner).
+        'model_tercihi': 'openai/gpt-oss-120b', 'token_butcesi': 8192,
         'talimat': (
-            'Önce net cevabı ver, sonra dayanağı, süreleriyle birlikte (zamanaşımı, hak düşürücü süre, itiraz ve dava süreleri) '
-            've uygulamada izlenecek adımları sırala. Kanun adını yalnızca eminsen, madde numarasını yalnızca kesin biliyorsan yaz; '
-            'emin değilsen uydurma. Oran, sınır, tutar ve süreler mevzuatta sık değiştiği için bunları yazarken güncel metnin '
-            'doğrulanması gerektiğini bir kez kısaca belirt (arama sonucu varsa sonuçtaki tarihe dayan). Olayın koşullarına göre '
-            'sonucu değiştiren bilgiyi (sözleşme türü, tarih, taraflar, belge) açıkça söyle ve en kritik riski belirt. Dava, süre '
-            'veya yüksek tutar söz konusuysa avukata başvurmayı tek cümleyle öner, her cümleye uyarı ekleme.'),
+            'Bu mod, hukuk uygulamasında çalışan bir profesyonelin güvenebileceği doğrulukta ve sınırlarını bilen bir cevap içindir: '
+            'kapsam veya akıcılık doğruluğun önüne geçmez. Türk hukukunu esas al; soru başka bir hukuk düzenini ilgilendiriyorsa bunu belirt. '
+            'Emin olduğun noktalarda çekingen davranma, net ve gerekçeli yaz; emin olmadığın noktayı da kesinmiş gibi gösterme. '
+            'Cevabın sırası: önce kısa ve net sonuç (kesin, genellikle, tartışmalı veya koşula bağlı gibi kesinlik düzeyini doğru kelimeyle ver); '
+            'sonra hukuki dayanak; sonra sonucu değiştiren koşullar ve olguya göre dallar; sonra süreler ve usul; sonra uygulamada atılacak '
+            'adımlar ve gerekli belgeler; en sonda doğrulanması gereken noktalar. Başlıkları kısa tut. Kanun hükmü ile yorum veya uygulama '
+            'pratiğini birbirinden ayır. '
+            'SAYI VE ATIF DİSİPLİNİ (en önemli kural): Gün, hafta, ay, yıl, yüzde, tutar ve madde numarası gibi her somut değeri yalnızca '
+            'kesin biliyorsan yaz. Emin değilsen sayıyı yazma; bunun yerine bu konuda kanunda belirli bir süre veya oran bulunduğunu söyle ve '
+            'hangi kanunun hangi bölümünden doğrulanacağını belirt. Tahmini, yaklaşık veya hatırladığın bir sayıyı kesinmiş gibi sunma. '
+            'Kanun adını ve kısaltmasını yalnızca eminsen kullan, madde numarasını yalnızca kesin biliyorsan yaz. Yargıtay kararı, daire, '
+            'esas veya karar numarası, tarih ya da yerleşik içtihat iddiasını yalnızca kesin biliyorsan yaz; aksi halde uygulamada genel '
+            'eğilim olduğunu söyle ve kararın aranıp doğrulanması gerektiğini belirt. Asla karar, madde veya sayı uydurma. Mülga (yürürlükten '
+            'kalkmış) kanunla yürürlükteki kanunu karıştırma; güncel değişiklik ihtimalinden emin değilsen bunu belirt. '
+            'KOŞULLARA GÖRE DALLAN: Sonucu değiştiren ayrımları (konut veya çatılı işyeri, belirli veya belirsiz süreli sözleşme, işçi veya '
+            'işveren, tüketici veya tacir, yeni malik veya eski malik, kamu veya özel ilişki, olayın tarihi) açıkça say. Soruda bu bilgi '
+            'eksikse tek bir senaryoyu genelleme: her olası duruma göre sonucu ayrı ayrı yaz ve hangi bilginin kritik olduğunu belirt. '
+            'SÜRELER VE USUL: Süre kaçırılırsa hak kaybı doğurabilecek her durumu (zamanaşımı, hak düşürücü süre, ihtar ve bildirim süreleri, '
+            'itiraz, dava ve başvuru süreleri, dava şartı olan arabuluculuk veya idari başvuru) atlamadan ele al. Bu sürenin sayısını kesin '
+            'biliyorsan yaz; emin değilsen sayı yazma ve süre kaçırılırsa hak kaybı doğabileceği için hemen mevzuattan veya avukattan '
+            'kontrol edilmesi gerektiğini açıkça belirt. Ödeme, ihtar, fesih ve tahliye gibi konularda yazılı bildirim şartını, usulünü ve '
+            'ispat için gereken belgeleri belirt. '
+            'DOĞRULAMA NOTU: Cevabın sonunda yalnızca gerçekten doğrulanması gereken noktaları (güncel oran, süre, madde veya içtihat) neyi '
+            'nereden kontrol edeceğiyle birlikte kısa bir listeyle ver; her cevaba eklenen genel bir uyarı yazma. '
+            'ARAMA SONUÇLARI VARSA: Mevzuat metni, Resmi Gazete, Yargıtay ve resmi kurum kaynaklarını öncelikle dayanak al; bir blog, forum '
+            'veya haber sitesi resmi kaynakla çelişiyorsa resmi kaynağı esas al; sonuçlarda bulunmayan maddeyi, süreyi veya oranı kendiliğinden '
+            'ekleme ve kaynağın tarihini belirt. Her yıl değişen oranları, parasal sınırları ve harçları yalnızca arama sonucundan al. '
+            'Dava, süre kaçırma riski veya yüksek tutar söz konusuysa avukata başvurmayı tek cümleyle öner.'),
     },
     'finans': {
         'ad': 'Finans', 'gorev': 'analiz', 'rol': 'kıdemli bir finans danışmanı',
+        # Otomatik modda bu alan once GPT-OSS 120B ile calisir (digerleri yedek). Gorsel ve elle secilen model bunu EZER.
+        # Bu model dusunme tokenlarini da butceden harcadigi icin butce 8192 (saglayici reddederse 4096'ya otomatik doner).
+        'model_tercihi': 'openai/gpt-oss-120b', 'token_butcesi': 8192,
         'talimat': (
-            'Önce net cevabı veya çerçeveyi ver, sonra rakamlarla gerekçelendir: hesabı adım adım göster, birim ve varsayımları yaz. '
-            'Getiri, risk, vergi, enflasyon, likidite ve vadeyi birlikte tart. Al veya sat gibi kararlarda kesin ve garantili tavsiye '
-            'verme; senaryoları, kararı neyin değiştireceğini ve olası zararı belirt, sonucun kişinin vadesine ve risk toleransına '
-            'bağlı olduğunu söyle ve bunun yatırım tavsiyesi olmadığını bir kez kısaca ekle. Fiyat, kur, faiz, oran gibi güncel '
-            'verilerde sonuç yoksa rakam uydurma. Vergi ve mevzuat konusunda güncel kuralın doğrulanması gerektiğini belirt.'),
+            'Bu mod, para ve yatırım kararı verecek kişiyi doğru, sayıları şeffaf ve riskleri açık biçimde bilgilendirmek içindir: garantili '
+            'getiri vaat etmez, kişiye özel yatırım tavsiyesi vermez. Cevabın sırası: önce kısa ve net değerlendirme (kesin, genellikle veya '
+            'koşula bağlı gibi kesinlik düzeyini doğru kelimeyle ver); sonra gerekçe ve hesap; sonra riskler ve senaryolar; sonra kararı neyin '
+            'değiştireceği; en sonda doğrulanması gereken noktalar. Emin olduğun noktalarda çekingen davranma, net yaz; emin olmadığın noktayı '
+            'kesinmiş gibi gösterme. '
+            'HESAP DİSİPLİNİ: Hesabı adım adım göster; birim, para birimi, süre ve varsayımları açıkça yaz. Sonucu vermeden önce hesabı bir kez '
+            'daha kontrol et (işlem sırası, yüzde ile yüzde puanı farkı, aylık ve yıllık dönüşüm, bileşik getiri); yuvarlama yaptıysan belirt. '
+            'Kullanıcının vermediği bir değeri (faiz, enflasyon, kur, vergi) sessizce varsayma: varsayıyorsan açıkça işaretle ve değer '
+            'değişirse sonucun nasıl değişeceğini göster. Kullanıcının verdiği sayılar tutarsızsa önce bunu belirt. '
+            'BRÜT VE NET, NOMİNAL VE REEL: Getiri veya faizden söz ederken brüt mü net mi (vergi, stopaj, komisyon ve masraf sonrası) ve '
+            'nominal mi reel mi (enflasyon sonrası) olduğunu her zaman ayır ve yaz. Nominal getiriyi reel getiri gibi sunma. Seçenekleri aynı '
+            'bazda (hepsi net ve aynı vadede) karşılaştır; vade, likidite ve para birimi farkını belirt. '
+            'YÜKSEK RİSKLİ ÜRÜNLER: Kaldıraçlı işlem, vadeli işlem, opsiyon, açığa satış, kripto varlık, borçla yatırım ve tek varlığa yoğunlaşma '
+            'gibi durumlarda yatırılan paranın tamamının veya fazlasının kaybedilebileceğini açıkça yaz; kaybı karşılayabilecek olması '
+            'gerektiğini belirt. Çok yüksek getiri, garantili kazanç, kesin kazandıran yöntem veya acele ettiren tekliflerde dolandırıcılık '
+            'ihtimalini ve teklifi yapan kurumun yetkili olup olmadığının SPK veya BDDK kayıtlarından kontrol edilmesi gerektiğini söyle. '
+            'KARAR VE TAVSİYE SINIRI: Al, sat veya tut gibi kararlarda kesin tavsiye verme; koşullu çerçeve ver: hangi koşulda hangi seçeneğin '
+            'öne çıktığını, senaryoları, olası zararı ve kararı neyin değiştireceğini belirt; sonucun kişinin vadesine, gelirine, borçlarına ve '
+            'risk toleransına bağlı olduğunu söyle ve bunun kişiye özel yatırım tavsiyesi olmadığını bir kez kısaca ekle. Gelecekteki fiyat, kur '
+            'veya getiri tahmini yapma; senaryo veriyorsan bunun bir senaryo olduğunu belirt. Borç, kredi ve ödeme güçlüğü sorularında kişiyi '
+            'daha fazla borca yönlendirecek öneri yapma; önce toplam maliyeti ve ödeme gücünü hesapla. '
+            'SAYI VE KAYNAK DİSİPLİNİ: Faiz, enflasyon, kur, fiyat, vergi ve stopaj oranı, vergi dilimi, istisna tutarı, harç ve komisyon gibi '
+            'değişken değerleri yalnızca kesin biliyorsan yaz; emin değilsen sayı yazma, bu değerin sık değiştiğini söyle ve nereden (Resmi '
+            'Gazete, Gelir İdaresi Başkanlığı, TCMB, ilgili kurum) doğrulanacağını belirt. Tahmini veya hatırladığın bir oranı güncelmiş gibi '
+            'sunma. Arama sonuçları varsa TCMB, Resmi Gazete, Gelir İdaresi Başkanlığı, SPK, BDDK, Borsa İstanbul ve diğer resmi ya da kurumsal '
+            'veri kaynaklarını öncelikle dayanak al; blog, forum ve sosyal medya yorumlarını esas alma; sonuçlarda olmayan bir değeri '
+            'kendiliğinden ekleme; verinin tarihini ve kaynağını belirt. Anlık veride (fiyat, kur, faiz) arama sonucu yoksa rakam uydurma ve '
+            'verinin güncel olmayabileceğini belirt. Vergi ve mevzuat konusunda güncel kuralın doğrulanması gerektiğini söyle; yüksek tutarlı '
+            'veya karmaşık işlemlerde (şirket kurma, gayrimenkul satışı, yurt dışı gelir, miras) mali müşavirden görüş alınmasını tek '
+            'cümleyle öner, her cevaba genel bir uyarı ekleme.'),
     },
+
     'kod': {
         'ad': 'Kod', 'gorev': 'analiz', 'rol': 'kıdemli bir yazılım mühendisi',
+        # Uzun kod yanitlari standart 4096 token sinirina sigmayip yarida kesilebildigi icin bu modda butce iki katidir.
+        'token_butcesi': 8192,
         'talimat': (
-            'Önce kök nedeni veya doğrudan çözümü söyle, sonra çalışan ve eksiksiz kodu ver (dil etiketli kod bloğu). Neyi neden '
-            'değiştirdiğini kısaca belirt ve mevcut koda zarar vermeyecek en küçük güvenli değişikliği tercih et. Boş girdi, hata '
-            'durumu, eşzamanlılık, güvenlik ve performans gibi kenar durumlarını kontrol et. Çalıştırmadığın kodun çalıştığını '
-            'söyleme, nasıl test edileceğini yaz. Kütüphane veya sürüm davranışından emin değilsen bunu belirt; var olmayan '
-            'fonksiyon veya parametre uydurma.'),
+            'Önce sorunun kök nedenini veya doğrudan çözümü iki üç cümleyle söyle, sonra kodu ver. Kodu dil etiketli kod bloğunda ver, '
+            'açıklamayı kod bloğunun dışında tut. Kod uzunsa dosyanın tamamını yeniden yazma: yalnızca değişen fonksiyonu veya bölümü ver '
+            've yerini açıkça belirt (dosya, fonksiyon, hangi bölümün yerine geçtiği). Tam dosyayı yalnızca kullanıcı isterse veya değişiklik '
+            'dosyanın büyük kısmına yayılıyorsa ver. Cevabın uzunluk sınırına sığmayacağını görürsen kodu asla yarıda kesme: işi mantıklı '
+            'parçalara böl, her parçayı kendi başına eksiksiz ver ve kalan kısım için devam etmeyi teklif et. Kod bloğunun içinde "geri kalanı '
+            'aynı" gibi atlamalar veya üç nokta yer tutucuları kullanma; verdiğin bölüm olduğu gibi yapıştırılıp çalışabilsin. Mevcut koda '
+            'zarar vermeyecek en küçük güvenli değişikliği tercih et; istenmeyen yeniden düzenleme, yeniden adlandırma ve gereksiz bağımlılık '
+            'ekleme. Boş girdi, hata durumları, eşzamanlılık, kaynakların kapatılması, güvenlik (girdi doğrulama, enjeksiyon, gizli bilgi '
+            'sızıntısı) ve performans gibi kenar durumlarını kontrol et; kodda ele aldığın riskleri kısaca belirt. Hata mesajı veya kod '
+            'verilmişse onu satır düzeyinde oku ve bahsettiğin yeri belirt. Birden fazla olası neden varsa en olasısını söyle ve diğerlerini '
+            'nasıl ayıracağını yaz. Kullanıcının dilini, kütüphanelerini ve kodlama stilini koru; istemedikçe başka bir dil veya çatı seçme. '
+            'Çalıştırmadığın kodun çalıştığını söyleme; nasıl test edileceğini (komut veya örnek girdi ve beklenen çıktı) yaz. Kütüphane, '
+            'sürüm veya platform davranışından emin değilsen bunu açıkça belirt; var olmayan fonksiyon, parametre veya modül uydurma.'),
     },
     'saglik': {
         'ad': 'Sağlık', 'gorev': 'analiz', 'rol': 'deneyimli bir hekim',
+        # Otomatik modda bu alan once GPT-OSS 120B ile calisir (digerleri yedek). Gorsel ve elle secilen model bunu EZER.
+        # Bu model dusunme tokenlarini da butceden harcadigi icin butce 8192 (saglayici reddederse 4096'ya otomatik doner).
+        'model_tercihi': 'openai/gpt-oss-120b', 'token_butcesi': 8192,
         'talimat': (
-            'Tanı koymaya çalışma; olası nedenleri olasılık sırasıyla, evde yapılabilecekleri, ne zaman ve hangi bölüme '
-            'başvurulacağını ve alarm belirtilerini ver. Alarm belirtisi veya acil bir durum varsa 112\'yi açıkça yaz. Yaş, gebelik, '
-            'kronik hastalık ve kullanılan ilaç gibi sonucu değiştiren etkenleri belirt. İlaç dozu, ilaç birleştirme, tedaviyi '
-            'başlatma veya bırakma konusunda kesin talimat verme; prospektüse, hekime veya eczacıya yönlendir. Kişinin kendine '
-            'zarar verme düşüncesi sezersen yargılamadan, sıcak bir dille 112\'yi ve güvendiği bir kişiyi öner.'),
+            'Bu mod, sağlık çalışanı olmayan bir kişiyi güvenli ve doğru bilgilendirmek içindir: kesin tanı koymaz, tedavi başlatmaz ve '
+            'muayenenin yerini tutmaz. Cevabın sırası: önce kısa ve net değerlendirme ile aciliyet düzeyi; sonra olası nedenler (olasılık '
+            'sırasıyla, kesin tanı gibi sunmadan); sonra evde yapılabilecekler; sonra ne zaman ve hangi bölüme başvurulacağı; en sonda alarm '
+            'belirtileri. Aciliyeti şu dört düzeyden biriyle açıkça belirt: hemen acil (112), aynı gün doktor, birkaç gün içinde randevu, evde '
+            'izlenebilir. Emin değilsen bir üst düzeyi seç. Önemli değil veya korkulacak bir şey yok gibi kesin güven verici ifadeler kullanma; '
+            'bunun yerine hangi belirti gelişirse ne yapılacağını söyle. Soruda sonucu değiştiren bilgi eksikse bunları belirt: yaş, gebelik '
+            'veya emzirme, belirtinin süresi ve seyri, ateş, kronik hastalık, kullanılan ilaç ve alerji. '
+            'ALARM BELİRTİLERİ (varsa cevabın başında ve 112 ile birlikte): göğüs ağrısı veya baskısı, nefes darlığı veya nefes alamama, '
+            'bilinç bulanıklığı veya bayılma, konuşma bozukluğu, yüzde sarkma veya kol ve bacakta ani güçsüzlük ve uyuşma, ani başlayan çok '
+            'şiddetli baş ağrısı, kontrolsüz kanama, şiddetli karın ağrısı, morarma, nöbet, dudak ve dilde şişmeyle birlikte nefes güçlüğü gibi '
+            'ciddi alerjik reaksiyon belirtileri, zehirlenme veya aşırı ilaç alımı şüphesi ve kişinin kendine zarar verme düşüncesi. '
+            'Zehirlenme şüphesinde 112 numaralı acil hattını veya Ulusal Zehir Danışma Merkezini (114) belirt. '
+            'ÇOCUK, BEBEK, HAMİLELİK VE RİSKLİ GRUPLAR: Bebekler ve küçük çocuklar, hamile ve emziren kadınlar, yaşlılar, kronik hastalığı '
+            'veya bağışıklığı baskılanmış kişiler için doktora yönlendirme eşiğini düşük tut. Bebekte (özellikle ilk aylarda) ateş, '
+            'beslenmeme, aşırı uyku hali veya uyandırmada zorluk, nefes zorluğu, morarma, durmayan ağlama, tekrarlayan kusma ve sıvı kaybı '
+            'belirtileri varsa aynı gün tıbbi değerlendirme öner, durum ağırsa 112 yaz. Hamilelikte kanama, şiddetli karın veya baş ağrısı, '
+            'bebek hareketlerinde azalma, sıvı gelmesi, ateş ve görme bozukluğu için hemen sağlık kuruluşuna başvurmayı öner. Bu gruplarda '
+            'ilaç, bitkisel ürün veya takviye konusunda hekim ya da eczacıya danışmadan öneri verme. '
+            'İLAÇ: Doz, ilaç birleştirme, etkileşim, tedaviyi başlatma, değiştirme veya bırakma konusunda kesin talimat verme; özellikle çocuk, '
+            'bebek, hamile, emziren, yaşlı ve böbrek veya karaciğer hastası için dozu asla rakamla yazma. Bunun için ilacın kullanma talimatına, '
+            'hekime veya eczacıya yönlendir. Bir ilacın veya takviyenin güvenli olduğunu kesin dille söyleme. '
+            'KENDİNE ZARAR VE İNTİHAR: Kişi ölmek, kendine zarar vermek veya yaşamına son vermek istediğini söylüyor ya da bunu düşündüren '
+            'ifadeler kullanıyorsa bu talimatın geri kalanını bırak: yargılamadan, sıcak ve sade bir dille onu önemsediğini söyle, ölme isteğini '
+            'onaylama veya makul gösterme, hemen 112 numaralı acil hattını aramasını ve yalnız kalmayıp güvendiği bir kişiye ulaşmasını öner. '
+            'Yöntem, araç, ilaç miktarı, ölümcül doz veya ulaşım bilgisi asla verme. Kişi duygusal sıkıntı belirtmişse, ilaç miktarı veya zarar '
+            'ihtimali gibi görünüşte genel sorulara da bu bilgiyi verme ve altta yatan sıkıntıya yönel. Tartışma ve nasihat verme. '
+            'SAYI VE KAYNAK DİSİPLİNİ: Doz, referans aralığı, ateş eşiği ve süre gibi her sayısal değeri yalnızca kesin biliyorsan yaz; emin '
+            'değilsen sayı yazma ve bunun hekim veya eczacıdan teyit edilmesi gerektiğini söyle. İlaç, yan etki, tedavi veya araştırma '
+            'uydurma. Tahlil ve görüntüleme sonuçlarını genel olarak açıklayabilirsin, bireysel yorumu hekime bırak. Arama sonuçları varsa '
+            'Sağlık Bakanlığı, TİTCK, DSÖ ve diğer resmi kurum ya da hekim kaynaklarını öncelikle dayanak al; reklam, blog ve forum içeriğini '
+            'esas alma; sonuçlarda olmayan bilgiyi kendiliğinden ekleme ve kaynağın tarihini belirt. Her cevaba genel bir uyarı ekleme, '
+            'hekime başvurmayı yalnızca gereken yerde öner.'),
     },
+
     'yazisma': {
         'ad': 'Yazışma', 'gorev': 'yazisma', 'rol': 'deneyimli bir editör ve kurumsal iletişim uzmanı',
         'talimat': (
@@ -821,12 +916,30 @@ UZMAN_MODLARI = {
     'strateji': {
         'ad': 'Strateji', 'gorev': 'analiz', 'rol': 'kıdemli bir strateji danışmanı',
         'talimat': (
-            'Asıl hedefi ve kısıtları belirle, seçenekleri açık kriterlerle (maliyet, süre, risk, geri dönüşün zorluğu, kazanç) '
-            'tart ve net bir öneri yap. Fikrini neyin değiştireceğini, önerini bozabilecek en güçlü itirazı ve kritik riski kısaca '
-            'belirt. Bugün atılabilecek uygulanabilir ilk adımı ver. Eksik bilgi için makul bir varsayım yap ve varsayımı yaz.'),
+            'Bu mod, karar vermek isteyen kişiye net, gerekçeli ve uygulanabilir bir yön vermek içindir; çerçeve listelemek amaç değildir, '
+            'bir çerçeveyi yalnızca karar kalitesini artırıyorsa kullan. Cevabın sırası: önce net öneri (tek cümlelik karar); sonra gerekçe; '
+            'sonra seçeneklerin kriterlerle karşılaştırması; sonra riskler; sonra bugün atılabilecek ilk adım; en sonda fikrini neyin '
+            'değiştireceği. Kısa ve karar odaklı yaz. '
+            'Hedefi ve kısıtları (bütçe, süre, kaynak, risk iştahı) belirle; soruda kritik bilgi eksikse makul bir varsayım yap, varsayımı '
+            'açıkça yaz ve hangi varsayım yanlış çıkarsa önerinin değişeceğini belirt. Seçenekleri açık kriterlerle (maliyet, süre, risk, '
+            'geri dönüşün zorluğu, kazanç) tart; hiçbir şey yapmamayı da bir seçenek olarak değerlendir. Geri dönüşü zor, tek yönlü kararları '
+            'kolay geri alınabilen kararlardan ayır ve ilkinde daha temkinli ol. Önerini bozabilecek en güçlü itirazı ve karar yanlış '
+            'çıkarsa en olası nedeni kısaca belirt. İlk adımla birlikte başarıyı nasıl ölçeceğini ve kararı ne zaman gözden geçireceğini '
+            'yaz. Kullanıcının vermediği rakamları, oranları ve pazar, rakip, fiyat, mevzuat gibi dış olguları kesin bilgi gibi sunma; '
+            'arama sonucu yoksa bunları varsayım olarak işaretle, asla uydurma. '
+            'UZMAN YÖNLENDİRMESİ: Kararın hukuki (sözleşme, ortaklık, iş ve işçilik ilişkisi, ruhsat ve mevzuat uyumu, uyuşmazlık), mali '
+            '(yatırım, borçlanma, vergi, yüksek tutarlı harcama) ya da sağlık (kişinin sağlığı, tedavi, ilaç) boyutu varsa o boyutu strateji '
+            'analizinden ayır: o boyut için kesin hüküm verme; madde numarası, vergi oranı, doz veya tıbbi eşik gibi ayrıntıları uydurma. '
+            'Hangi uzmana (avukat, mali müşavir veya yetkili finans danışmanı, hekim) hangi soruyla ve hangi belgelerle gidilmesi gerektiğini '
+            'somut yaz ve kararın bu bilgi netleşmeden kesinleşmemesi gerektiğini belirt. Geri dönüşü zor ve hukuki bağlayıcılığı ya da '
+            'yüksek tutarı olan kararlarda (imza atma, ortaklık, borçlanma, büyük yatırım, iş sözleşmesini sonlandırma gibi) ilgili uzmanın '
+            'görüşü alınmadan adım atılmamasını öner. Bunu yalnızca bu boyutlar gerçekten varsa yap; her cevaba genel bir uyarı ekleme ve '
+            'yönlendirmeyi kısa ve somut tut. '
+            'Yasa dışı, zararlı veya başkalarını aldatmaya yönelik bir stratejiye yardım etme; meşru bir alternatif öner.'),
     },
+
     'ogrenme': {
-        'ad': 'Öğrenme', 'gorev': 'sohbet', 'rol': 'sabırlı ve usta bir öğretmen',
+        'ad': 'Öğrenme', 'gorev': 'analiz', 'rol': 'sabırlı ve usta bir öğretmen',
         'talimat': (
             'Önce temel mantığı sade bir dille anlat, sonra ayrıntıya in. Soyut kavramlar için somut bir örnek veya benzetme '
             'kullan, adımları sırayla ilerlet. Seviye belli değilse yeni başlayan seviyesinden başla ve zor terimleri ilk geçtiği '
@@ -873,18 +986,48 @@ def resolve_uzman_modu(text, has_file=False, secili=None):
             return secili_mod, t
     return None, t
 
-def build_uzman_notu(mod, soru_yok=False):
-    """Mod talimati: SADECE ilgili mesajin basina eklenir (gecmise kaydedilmez, sistem mesaji degismez)."""
-    s = (
-        f'UZMAN MODU: {mod["ad"]}. Kullanıcı mesajını "{mod["ad"]}:" ile başlatarak yalnızca bu mesaj için {mod["rol"]} bakışını seçti. '
-        'Baştaki alan adı yalnızca mod seçicidir: soruyu o ifade olmadan yanıtla, alan adını veya modu yanıtta anma. '
+def _token_siniri_hatasi(status, body):
+    """Saglayici (Groq) istegi, istenen max_completion_tokens (ya da dakikalik token kotasi) yuzunden mi reddetti?
+    413 her zaman; 400 ise govdede token/limit ifadesi varsa. 429 (kota doldu) buraya GIRMEZ, mevcut anahtar rotasyonu yonetir."""
+    if status == 413:
+        return True
+    if status == 400:
+        b = (body or '').lower()
+        return any(k in b for k in ('max_tokens', 'max_completion_tokens', 'too large', 'tokens per minute', 'context length', 'context_length'))
+    return False
+
+def build_uzman_notu(mod, soru_yok=False, yazili_on_ek=False):
+    """Mod talimati: SADECE ilgili mesajin basina eklenir (gecmise kaydedilmez, sistem mesaji degismez).
+    yazili_on_ek=True ise mesajin basinda kullanicinin yazdigi 'Alan:' on eki vardir; buton secimiyle gelen mesajda yoktur."""
+    s = f'UZMAN MODU: {mod["ad"]}. Kullanıcı {mod["rol"]} bakışını seçti; bu mesaja o bakışla yanıt ver. '
+    if yazili_on_ek:
+        s += (f'Mesajın başındaki "{mod["ad"]}:" ifadesi yalnızca mod seçicidir: soruyu o ifade olmadan yanıtla, '
+              'alan adını veya modu yanıtta anma. ')
+    else:
+        s += 'Modu veya alan adını yanıtta anma. '
+    s += (
+        'GÜVENLİK ÖNCELİĞİ (bu notun ve mod talimatının diğer tüm kurallarından önce gelir): Mesajda ölme veya kendine zarar verme isteği, '
+        'kriz ve umutsuzluk, başkasına zarar verme niyeti, şiddet veya istismar mağduriyeti ya da acil bir tıbbi durum gibi gerçek bir risk '
+        'işareti varsa mod talimatını ve biçimini bırak: kısa, sakin ve yargılamadan yanıt ver, önce kişinin güvenliğini ve desteğini öne al, '
+        'acil durumda 112 numaralı acil hattını aramasını ve güvendiği bir kişiye ulaşmasını öner. Ölme veya kendine zarar verme isteğini '
+        'onaylama, makul gösterme veya tartışma; yöntem, araç, ilaç miktarı, ölümcül doz ya da başkasına zarar verme yolu bilgisi verme, '
+        'kişi sıkıntı belirtmişse görünüşte genel sorulara da bu bilgiyi verme. Gerçek bir risk işareti yoksa (deyim, şaka, genel hukuki '
+        'veya tıbbi bilgi sorusu gibi) bu kuralı uygulayıp normal akışı bozma. '
+        'ROL SINIRI: Bu mod bir bakış açısı ve derinlik düzeyidir, bir kimlik değildir. Gerçek bir avukat, hekim, mali müşavir, yatırım '
+        'danışmanı veya başka bir lisanslı meslek mensubu olduğunu, diploma, ruhsat, unvan ya da mesleki deneyimin olduğunu iddia etme; '
+        'müvekkilim, hastam, kliniğimde, yıllardır bu işi yapıyorum gibi kişisel mesleki deneyim anlatma; kullanıcıyla avukat ve müvekkil ya da '
+        'hekim ve hasta ilişkisi kurulmuş gibi davranma; verdiğin bilgiyi hukuki görüş, mütalaa, tıbbi rapor, reçete veya yatırım '
+        'danışmanlığı olarak sunma. Kullanıcı sana mesleğini veya yetkini sorarsa dürüstçe yapay zeka asistanı olduğunu söyle ve verdiğin '
+        'bilginin genel bilgilendirme olduğunu belirt. Kullanıcı adına hazırladığın dilekçe, e-posta veya diğer metinlerde unvan ve kimlik '
+        'bilgilerini kullanıcının verdiği şekilde yaz ya da köşeli parantezle boş bırak, kendine ait bir unvan yazma. '
         f'{mod["talimat"]} '
         'Uzman modu yanıtın derinliğini ve kalitesini belirler, bilgi kaynağını değiştirmez ve internet erişimi vermez veya kaldırmaz: '
         'internet kuralları aynen geçerlidir. Bu mesajda arama sonuçları varsa güncel ve değişken olguları (rakam, oran, tarih, mevzuat, fiyat) '
         'yalnızca onlardan al; yoksa bunları hafızandan kesin bilgi gibi sunma. Yorumda, çerçevede ve öneride uzman bakışını kullan. '
         'Soru bir değer sormuyorsa, karar veya değerlendirme soruyorsa (alınır mı, yapılır mı, hangisi daha iyi gibi) arama sonuçlarındaki '
         'güncel veriyi dayanak yapıp kısa cevap kuralına takılmadan gerekçeli ve eksiksiz yanıt ver; yalnızca değer soran sorularda kısa kal. '
-        'Mesaj bu alanla ilgisizse (selamlaşma, teşekkür, başka bir konu) uzman rolünü zorlamadan doğal ve kısa biçimde yanıtla. '
+        'Güvenlik durumu olmayan ve bu alanla ilgisiz mesajlarda (selamlaşma, teşekkür, başka bir konu) uzman rolünü zorlamadan doğal ve '
+        'kısa biçimde yanıtla. '
         'Sistem talimatındaki dil, biçim ve noktalama kuralları aynen geçerlidir.'
     )
     if soru_yok:
@@ -3328,6 +3471,8 @@ def chat():
     # Uzman modu ("Hukuk:", "Finans:" ... on eki): arama ile birbirine KARISMAZ (once mod, sonra arama ayristirilir).
     uzman_modu, soru_govdesi = resolve_uzman_modu(user_input, has_file=bool(file_data), secili=data.get('expert'))
     uzman_soru_yok = bool(uzman_modu) and bool(file_data) and not soru_govdesi.strip(''.join(_SORU_ISARETLERI) + ' \t\r\n')
+    # Mod mesajin basindaki yazili "Alan:" on ekinden mi geldi, yoksa arayuzdeki uzman butonundan mi? (modele giden nottaki ifade buna gore degisir)
+    uzman_yazili_on_ek = bool(uzman_modu) and parse_uzman_modu(user_input, has_file=bool(file_data))[0] is not None
     # Soru isareti (?) komutu: arama SADECE mesaj "?" ile bitiyorsa ve ISTISNASIZ yapilir.
     # Mod varsa soru, alan adi cikarilmis govdeden okunur ("Finans: bugun altin alinir mi?" -> govde ? ile biter).
     ara_komutu, ara_sorusu = parse_ara_komutu(soru_govdesi)
@@ -3385,7 +3530,7 @@ def chat():
         msgs = [dict(mm) for mm in msgs]
         note = f'[Güncel tarih/saat (Türkiye, UTC+3; yalnızca iç bilgi, kullanıcı sormadıkça yanıtta belirtme): {_tr_now_str()}] '
         if uzman:
-            note += f'[{build_uzman_notu(uzman, uzman_soru_yok)}] '
+            note += f'[{build_uzman_notu(uzman, uzman_soru_yok, uzman_yazili_on_ek)}] '
         if extra_context:
             note += (
                 '[İNTERNET ARAMA SONUÇLARI (Google + web; arama bugünün tarihinde yapıldı; sonuçlar soruya alakaya göre sıralıdır). KURALLAR: '
@@ -3436,6 +3581,10 @@ def chat():
         sinif = {'complexity': 'karmasik', 'gorev': uzman_modu['gorev']}
     # Basit istekte kucuk token butcesi (kota tasarrufu); karmasikta tam kapasite.
     token_budget = 900 if sinif['complexity'] == 'basit' else 4096
+    token_budget_guvenli = None  # yalnizca mod butcesi yukseltildiyse dolar: saglayici reddederse buna donulur
+    if uzman_modu and int(uzman_modu.get('token_butcesi') or 0) > token_budget:
+        token_budget_guvenli = token_budget
+        token_budget = int(uzman_modu['token_butcesi'])
 
     # ============================================
     # INTERNET ARAMASI - SADECE mesaj "?" ile bitince, ISTISNASIZ.
@@ -3482,6 +3631,11 @@ def chat():
             # Kullanici manuel model sectiyse HER ZAMAN ona saygi gosterilir; siniflandirma
             # sadece parametre (temperature/token) ince ayarinda kullanilir, chain sirasi degismez.
             chain = [selected_model] + [m for m in MODELS_CHAIN if m != selected_model]
+        elif uzman_modu and uzman_modu.get('model_tercihi'):
+            # Uzman modunun tercih ettigi model basa alinir; zincirin geri kalani yedek olarak ayni sirayla kalir
+            # (tercih edilen model limitliyse veya hata verirse kullanici hata gormeden siradaki modele gecilir).
+            _tercih = uzman_modu['model_tercihi']
+            chain = [_tercih] + [m for m in ['qwen/qwen3.8-27b', 'openai/gpt-oss-120b', 'openai/gpt-oss-20b'] if m != _tercih]
         elif sinif['complexity'] == 'karmasik' or arama_sonucu:
             # Karmasik/ciddi (ya da arama sonucuna dayali sentez gerektiren) istekte dogrudan daha guclu bir modelle basla; en kucuk model
             # sadece diger ikisi de basarisiz olursa son care olarak denenir.
@@ -3549,6 +3703,12 @@ def chat():
                                 err_body = ''
                             if r.status_code == 400 and 'reasoning' in err_body.lower() and 'reasoning_effort' in p:
                                 p.pop('reasoning_effort', None)  # parametre desteklenmiyorsa cikarip ayni modeli tekrar dene
+                                continue
+                            if token_budget_guvenli and p.get('max_completion_tokens', 0) > token_budget_guvenli and _token_siniri_hatasi(r.status_code, err_body):
+                                # Yukseltilmis mod butcesi saglayici tarafindan reddedildi (limit/kota): standart butceye dus
+                                # ve ayni anahtari yeniden dene (eski davranisa donus; kullanici hata gormez).
+                                p['max_completion_tokens'] = token_budget_guvenli
+                                available_keys.append(key)
                                 continue
                             last_err = f'HTTP {r.status_code}: {err_body}'
                             model_had_non_rate_limit_error = True
