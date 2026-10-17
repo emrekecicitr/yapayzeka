@@ -3730,6 +3730,97 @@ def api_weather():
         return jsonify({'ok': False, 'error': 'hata'})
 
 # ============================================
+# UST BAR: DOLAR / EURO (T.C. Merkez Bankasi resmi doviz kurlari)
+# ============================================
+# Kaynak: https://www.tcmb.gov.tr/kurlar/today.xml (TCMB gosterge niteligindeki resmi kurlar).
+# Doviz Satis kuru gosterilir. TCMB bu kurlari is gunlerinde yayinlar; hafta sonu/tatilde son
+# yayinlanan kur gecerlidir. Sunucu kisa sure onbellekler, tarayici her acilista ve duzenli
+# araliklarla yeniden sorar.
+_kur_cache = {'t': 0.0, 'data': None}
+_kur_lock = threading.Lock()
+
+def _kur_fetch_tcmb():
+    import xml.etree.ElementTree as ET
+    r = httpx.get('https://www.tcmb.gov.tr/kurlar/today.xml', headers=_WX_UA, timeout=6.0, follow_redirects=True)
+    r.raise_for_status()
+    root = ET.fromstring(r.content)
+    out = {}
+    for cur in root.findall('Currency'):
+        code = cur.get('CurrencyCode')
+        if code in ('USD', 'EUR'):
+            txt = (cur.findtext('ForexSelling') or '').strip().replace(',', '.')
+            if txt:
+                v = float(txt)
+                if v > 0:
+                    out[code] = round(v, 4)
+    if 'USD' not in out or 'EUR' not in out:
+        raise ValueError('USD/EUR bulunamadi')
+    return {'usd': out['USD'], 'eur': out['EUR'], 'date': (root.get('Tarih') or root.get('Date') or '').strip()}
+
+def _kur_num(v):
+    """'6740.80', '6.740,80' ya da sayi bicimindeki degeri float yapar; gecersizse None."""
+    try:
+        t = str(v).strip().replace(' ', '')
+        if not t:
+            return None
+        if ',' in t and '.' in t:
+            t = t.replace('.', '').replace(',', '.')
+        elif ',' in t:
+            t = t.replace(',', '.')
+        f = float(t)
+        return f if f > 0 else None
+    except Exception:
+        return None
+
+def _kur_fetch_gold():
+    """Gram altin (TL) satis fiyati: finans.truncgil.com canli piyasa verisi. Basarisizsa None."""
+    try:
+        r = httpx.get('https://finans.truncgil.com/v4/today.json', headers=_WX_UA, timeout=5.0, follow_redirects=True)
+        r.raise_for_status()
+        g = (r.json() or {}).get('GRA') or {}
+        v = _kur_num(g.get('Selling'))
+        return round(v, 2) if v else None
+    except Exception as e:
+        print(f"[UYARI] Gram altin alinamadi: {e}")
+        return None
+
+@app.route('/api/kur', methods=['GET'])
+def api_kur():
+    try:
+        now = time.time()
+        with _kur_lock:
+            if _kur_cache['data'] and now - _kur_cache['t'] < 45:
+                return jsonify(dict(_kur_cache['data'], ok=True))
+        data, err = None, None
+        for _try in range(3):
+            try:
+                data = _kur_fetch_tcmb()
+                break
+            except Exception as e:
+                err = e
+                time.sleep(0.8)   # telefonda ag/DNS uyanirken ilk istek gecici olarak dusebiliyor
+        if data:
+            with _kur_lock:
+                last_gold = (_kur_cache['data'] or {}).get('gold')
+            gold = _kur_fetch_gold() or last_gold   # altin gelmezse son bilinen deger; doviz her durumda gosterilir
+            if gold:
+                data['gold'] = gold
+            with _kur_lock:
+                _kur_cache['data'] = data
+                _kur_cache['t'] = now
+            return jsonify(dict(data, ok=True))
+        else:
+            print(f"[UYARI] TCMB kur alinamadi: {err}")
+            with _kur_lock:
+                last = _kur_cache['data']
+            if last:
+                return jsonify(dict(last, ok=True, stale=True))
+            return jsonify({'ok': False, 'error': 'veri alinamadi'})
+    except Exception as e:
+        print(f"[UYARI] /api/kur hatasi: {e}")
+        return jsonify({'ok': False, 'error': 'hata'})
+
+# ============================================
 # AYARLAR (sistem promptu / yaraticilik seviyesi)
 # ============================================
 @app.route('/settings', methods=['GET'])
@@ -3989,7 +4080,7 @@ window.onerror = function(msg, url, line, col, error){
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=Inter:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Hanken+Grotesk:wght@400&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" crossorigin="anonymous"></script>
 <style>
@@ -4052,6 +4143,17 @@ html, body { height: 100%; background: var(--obsidian); color: var(--ivory); fon
 .header { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 16px 0 14px; height: 54px; border-bottom: none; background: rgba(53,45,39,0.72); -webkit-backdrop-filter: blur(16px) saturate(140%); backdrop-filter: blur(16px) saturate(140%); z-index: 10; }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .header { background: var(--obsidian); } }
 .header-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.hdr-fx { --fxs: 1; display: flex; align-items: center; flex: 0 1 auto; gap: clamp(4px, 1.5vw, 8px); min-width: 0; overflow: hidden; height: 34px; white-space: nowrap; font-family: 'Manrope', sans-serif; font-size: 11.5px; line-height: 1; letter-spacing: 0.01em; font-variant-numeric: tabular-nums; -webkit-user-select: none; user-select: none; transition: opacity .3s ease; }
+.hdr-fx.is-empty { display: none; }
+.hdr-fx-item.is-empty, .hdr-fx-sep.is-empty { display: none; }
+.hdr-fx.is-stale { opacity: 0.7; }
+.hdr-fx-item { display: inline-flex; align-items: center; gap: 4px; min-width: 0; flex-shrink: 0; }
+.hdr-fx-ico { width: calc(clamp(15px, 4vw, 18px) * var(--fxs, 1)); height: calc(clamp(15px, 4vw, 18px) * var(--fxs, 1)); flex-shrink: 0; display: block; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,0.5)) drop-shadow(0 0 3px rgba(224,176,74,0.18)); }
+.hdr-fx-lbl { font-family: 'Inter', 'Manrope', system-ui, sans-serif; font-size: 10px; font-weight: 500; letter-spacing: 0.02em; color: #9C9A92; }
+.hdr-fx-val { font-family: 'Inter', 'Manrope', system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: calc(clamp(9.5px, 2.7vw, 12px) * var(--fxs, 1)); font-weight: 600; letter-spacing: -0.01em; color: #FAF9F5; font-variant-numeric: tabular-nums lining-nums; font-feature-settings: 'tnum' 1, 'lnum' 1, 'cv11' 1; }
+.hdr-fx-sep { width: 1px; height: 12px; background: rgba(250,249,245,0.18); flex-shrink: 0; }
+@media (min-width: 400px) { .hdr-fx-item { gap: 5px; } }
+@media (max-width: 440px) { .hdr-fx-lbl { display: none; } }
 .sidebar-toggle { display: none; width: 34px; height: 34px; background: none; border: none; border-radius: 50%; color: var(--stone); cursor: pointer; padding: 0; align-items: center; justify-content: center; transition: background-color .15s ease, color .15s ease; -webkit-tap-highlight-color: transparent; }
 .sidebar-toggle svg { width: 18px; height: 18px; }
 .sidebar-toggle:active { background: rgba(237,230,216,0.08); color: var(--ivory); }
@@ -4204,7 +4306,7 @@ html, body { height: 100%; background: var(--obsidian); color: var(--ivory); fon
 .input-wrapper { position: relative; display: flex; flex-direction: column; width: 100%; max-width: 720px; margin: 0 auto; background: var(--mb-bg); border: 1px solid var(--mb-border); border-radius: 24px; padding: 10px; gap: 0; box-shadow: 0 8px 24px rgba(0,0,0,0.28); transition: border-color .2s ease; }
 .input-wrapper:focus-within { border-color: #6E6155; }
 .input-wrapper textarea { width: 100%; background: transparent; border: none; outline: none; resize: none; font-family: 'Manrope', sans-serif; font-size: 16px; font-weight: 400; color: var(--mb-text); caret-color: var(--mb-text); line-height: var(--ta-lh); padding: var(--ta-py) 8px; margin: 0 0 8px; display: block; white-space: pre-wrap; word-wrap: break-word; overflow-y: hidden; overflow-x: hidden; height: calc(var(--ta-lh) + var(--ta-py) * 2); min-height: calc(var(--ta-lh) + var(--ta-py) * 2); max-height: 20vh; transition: height .18s cubic-bezier(.2,.8,.2,1); }
-.input-wrapper textarea::placeholder { color: var(--mb-muted); font-family: inherit; font-size: inherit; font-weight: 400; font-style: normal; letter-spacing: inherit; opacity: 1; }
+.input-wrapper textarea::placeholder { color: var(--mb-muted); font-family: 'Hanken Grotesk', 'Manrope', system-ui, sans-serif; font-size: inherit; font-weight: 400; font-style: normal; letter-spacing: inherit; opacity: 1; }
 .input-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--btn); }
 .input-row-left { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; }
 .input-row-right { display: flex; align-items: center; gap: 8px; flex: none; }
@@ -4417,18 +4519,18 @@ html, body { height: 100%; background: var(--obsidian); color: var(--ivory); fon
 
 /* ============ CLAUDE TEMASI: yalnizca renk, golge, kenarlik, yazi tipi. Yerlesim ve boyut kurallarina dokunmaz. ============ */
 :root {
-  --obsidian: #1E1A17; --obsidian-2: #232321; --obsidian-3: #373735;
+  --obsidian: #2B2B29; --obsidian-2: #232321; --obsidian-3: #373735;
   --hairline: #4C4C48; --hairline-soft: #3A3A37;
   --ivory: #FAF9F5; --stone: #C2C0B6; --stone-dim: #9C9A92;
   --brass: #D97757; --brass-bright: #E8906F; --brass-dim: rgba(217,119,87,0.12);
   --code-bg: #232321; --meta-bright: #C2C0B6; --time-gray: #9C9A92; --ink-dim: #DEDCD1;
   --cl-accent: #D97757; --cl-accent-hover: #C6613F;
 }
-html, body { background: #1E1A17; }
+html, body { background: #2B2B29; }
 ::selection { background: rgba(217,119,87,0.30); color: #FAF9F5; }
-.main-content, .chat-area, .input-area { background: #1E1A17; }
+.main-content, .chat-area, .input-area { background: #2B2B29; }
 .sidebar { background: #232321; border-right-color: #3A3A37; }
-.header { background: rgba(30,26,23,0.80); }
+.header { background: rgba(43,43,41,0.80); }
 .sidebar-header .seal, .header-brand .seal { background: #D97757; border-color: transparent; color: #FAF9F5; box-shadow: none; }
 .pulse-orb { background: transparent; border: none; color: #D97757; box-shadow: none; }
 .welcome-title { font-family: 'Fraunces', Georgia, serif; font-weight: 400; color: #FAF9F5; text-shadow: none; }
@@ -4440,21 +4542,21 @@ html, body { background: #1E1A17; }
 .bubble.ai-bubble code { background: rgba(250,249,245,0.08); }
 
 /* Giris alani: Claude kartı */
-.input-wrapper { --mb-bg: #242120; --mb-border: #34302C; --mb-btn: #36322F; --mb-btn-hover: #413C38; --mb-text: #FAF9F5; --mb-muted: #8E8A83; --mb-icon: #C6C2B8; --mb-menu-bg: #2A2725; --mb-menu-border: #3A3632; --mb-coffee: transparent; --mb-coffee-hover: rgba(250,249,245,0.08); --mb-coffee-deep: #4C4C48; --mb-coffee-ink: #C2C0B6; }
-.input-wrapper { background: #242120; border-color: #34302C; box-shadow: 0 4px 24px rgba(0,0,0,0.30); }
-.input-wrapper:focus-within { border-color: #46413C; }
+.input-wrapper { --mb-bg: #373735; --mb-border: #4C4C48; --mb-btn: #454542; --mb-btn-hover: #4C4C48; --mb-text: #FAF9F5; --mb-muted: #8B8A84; --mb-icon: #C2C0B6; --mb-menu-bg: #343432; --mb-menu-border: #4C4C48; --mb-coffee: transparent; --mb-coffee-hover: rgba(250,249,245,0.08); --mb-coffee-deep: #4C4C48; --mb-coffee-ink: #C2C0B6; }
+.input-wrapper { background: #373735; border-color: #4C4C48; box-shadow: 0 4px 24px rgba(0,0,0,0.35); }
+.input-wrapper:focus-within { border-color: #5E5E59; }
 .input-wrapper.voice-listening { border-color: #D97757; }
 
 /* Butonlar (yalnizca gorunum, konumlar ayni) */
-.act-btn { background: #36322F; color: #FAF9F5; box-shadow: none; }
-.model-pill { background: #36322F; color: #FAF9F5; border-radius: 999px; box-shadow: none; }
+.act-btn { background: #454542; color: #FAF9F5; box-shadow: none; }
+.model-pill { background: #454542; color: #FAF9F5; border-radius: 999px; box-shadow: none; }
 .model-pill .mp-sub { color: #C2C0B6; }
 .send-btn { background: #D97757; color: #FAF9F5; box-shadow: none; }
 .talk-btn { background: #F7F7F3; color: #1A1A19; box-shadow: none; }
 .talk-btn.is-active { background: #D97757; color: #FAF9F5; }
 @media (hover: hover) {
-  .act-btn:hover { background: #413C38; }
-  .model-pill:hover { background: #413C38; }
+  .act-btn:hover { background: #4C4C48; }
+  .model-pill:hover { background: #4C4C48; }
   .send-btn:hover:not(:disabled) { background: #C6613F; }
   .talk-btn:hover { background: #E8E6DC; }
 }
@@ -4521,7 +4623,7 @@ html, body { background: #1E1A17; }
 .sidebar-header { padding: 16px 18px 0; border-bottom: none; }
 
 /* Mikrofon (sesle yaz) butonu: artı butonuyla ayni boyut ve renk */
-.mic-btn { width: var(--btn); height: var(--btn); padding: 0; border: none; background: #36322F; color: #C2C0B6; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: background-color .15s ease, color .15s ease, transform .15s ease; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+.mic-btn { width: var(--btn); height: var(--btn); padding: 0; border: none; background: #454542; color: #C2C0B6; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: background-color .15s ease, color .15s ease, transform .15s ease; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
 .mic-btn svg { width: 18px; height: 18px; }
 .mic-btn:active { transform: scale(0.94); }
 .mic-btn:focus { outline: none; }
@@ -4547,6 +4649,22 @@ html, body { background: #1E1A17; }
     <header class="header">
       <div class="header-left">
         <button class="sidebar-toggle" onclick="toggleSidebar()" id="sidebarToggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg></button>
+        <div class="hdr-fx is-empty" id="hdrFx" aria-label="Dolar ve Euro kurları">
+          <span class="hdr-fx-item" id="hdrFxUsd">
+            <svg class="hdr-fx-ico" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="fxGu" x1="12%" y1="4%" x2="88%" y2="96%"><stop offset="0" stop-color="#FFF1BF"/><stop offset=".35" stop-color="#E7B955"/><stop offset=".7" stop-color="#B98424"/><stop offset="1" stop-color="#7A4F12"/></linearGradient><linearGradient id="fxGuF" x1="85%" y1="95%" x2="15%" y2="5%"><stop offset="0" stop-color="#C58F2C"/><stop offset=".55" stop-color="#E9BE5C"/><stop offset="1" stop-color="#FFE9A8"/></linearGradient><linearGradient id="fxGuH" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity=".8"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient></defs><circle cx="12" cy="12" r="11.2" fill="url(#fxGu)"/><circle cx="12" cy="12" r="10.3" fill="none" stroke="#FFF6D6" stroke-opacity=".5" stroke-width=".5"/><circle cx="12" cy="12" r="8.5" fill="url(#fxGuF)" stroke="#8A5A14" stroke-opacity=".55" stroke-width=".6"/><ellipse cx="9.4" cy="7.3" rx="4.8" ry="2.1" transform="rotate(-28 9.4 7.3)" fill="url(#fxGuH)" opacity=".6"/><g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.55"><path transform="translate(0 .55)" stroke="#FFF1C2" stroke-opacity=".75" d="M14.9 9.1c-.4-1.2-1.4-1.8-2.9-1.8-1.7 0-2.8.8-2.8 2 0 2.8 5.8 1.4 5.8 4.4 0 1.3-1.3 2.2-3 2.2-1.6 0-2.7-.7-3.1-1.9M12 5.6v1.7M12 15.9v2.5"/><path stroke="#6A4310" d="M14.9 9.1c-.4-1.2-1.4-1.8-2.9-1.8-1.7 0-2.8.8-2.8 2 0 2.8 5.8 1.4 5.8 4.4 0 1.3-1.3 2.2-3 2.2-1.6 0-2.7-.7-3.1-1.9M12 5.6v1.7M12 15.9v2.5"/></g></svg>
+            <span class="hdr-fx-lbl">Dolar:</span><span class="hdr-fx-val" id="hdrFxUsdVal">-</span>
+          </span>
+          <span class="hdr-fx-sep" aria-hidden="true"></span>
+          <span class="hdr-fx-item" id="hdrFxEur">
+            <svg class="hdr-fx-ico" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="fxGe" x1="12%" y1="4%" x2="88%" y2="96%"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".35" stop-color="#D5DDEA"/><stop offset=".7" stop-color="#97A5BC"/><stop offset="1" stop-color="#5C6B84"/></linearGradient><linearGradient id="fxGeF" x1="85%" y1="95%" x2="15%" y2="5%"><stop offset="0" stop-color="#8E9CB4"/><stop offset=".55" stop-color="#C6D0E0"/><stop offset="1" stop-color="#F4F7FC"/></linearGradient><linearGradient id="fxGeH" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity=".9"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></linearGradient></defs><circle cx="12" cy="12" r="11.2" fill="url(#fxGe)"/><circle cx="12" cy="12" r="10.3" fill="none" stroke="#FFFFFF" stroke-opacity=".55" stroke-width=".5"/><circle cx="12" cy="12" r="8.5" fill="url(#fxGeF)" stroke="#44516A" stroke-opacity=".5" stroke-width=".6"/><ellipse cx="9.4" cy="7.3" rx="4.8" ry="2.1" transform="rotate(-28 9.4 7.3)" fill="url(#fxGeH)" opacity=".6"/><g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.55"><path transform="translate(0 .55)" stroke="#FFFFFF" stroke-opacity=".8" d="M15.6 8.5a4.6 4.6 0 1 0 0 7M6.9 10.7h6.3M6.9 13.3h6.3"/><path stroke="#2B3850" d="M15.6 8.5a4.6 4.6 0 1 0 0 7M6.9 10.7h6.3M6.9 13.3h6.3"/></g></svg>
+            <span class="hdr-fx-lbl">Euro:</span><span class="hdr-fx-val" id="hdrFxEurVal">-</span>
+          </span>
+          <span class="hdr-fx-sep is-empty" id="hdrFxGoldSep" aria-hidden="true"></span>
+          <span class="hdr-fx-item is-empty" id="hdrFxGold">
+            <svg class="hdr-fx-ico" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="fxGg" x1="10%" y1="0%" x2="90%" y2="100%"><stop offset="0" stop-color="#FFE9A6"/><stop offset=".45" stop-color="#E3B24C"/><stop offset="1" stop-color="#8F601A"/></linearGradient><linearGradient id="fxGgT" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF8D8"/><stop offset="1" stop-color="#F1CB6A"/></linearGradient><linearGradient id="fxGgF" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#C58F2C"/><stop offset="1" stop-color="#F0C766"/></linearGradient></defs><ellipse cx="12" cy="20.6" rx="8.8" ry="1.1" fill="#000000" opacity=".28"/><path d="M2.9 18.9 L5.1 9.6 H18.9 L21.1 18.9 Z" fill="url(#fxGg)"/><path d="M7.3 5.4 H16.7 L18.9 9.6 H5.1 Z" fill="url(#fxGgT)"/><path d="M5.1 9.6 H18.9" stroke="#FFFFFF" stroke-opacity=".55" stroke-width=".5" fill="none"/><path d="M5.8 11.3 H18.2 L19.7 17.7 H4.3 Z" fill="url(#fxGgF)" stroke="#7A4F12" stroke-opacity=".5" stroke-width=".5"/><path d="M7.8 6.4 H16.2" stroke="#FFFFFF" stroke-opacity=".7" stroke-width=".7" stroke-linecap="round" fill="none"/><text x="12" y="15.9" text-anchor="middle" font-family="Inter, Manrope, system-ui, sans-serif" font-size="5.6" font-weight="800" fill="#5B3D10">Au</text><path d="M20.2 2.9 L20.7 4.1 L21.9 4.6 L20.7 5.1 L20.2 6.3 L19.7 5.1 L18.5 4.6 L19.7 4.1 Z" fill="#FFF6D0" opacity=".95"/></svg>
+            <span class="hdr-fx-lbl">G.Altın:</span><span class="hdr-fx-val" id="hdrFxGoldVal">-</span>
+          </span>
+        </div>
       </div>
       <div class="header-actions">
         <button class="icon-btn" id="hdrHomeBtn" type="button" onclick="goHome()" title="Yeni sohbet" aria-label="Yeni sohbet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/><path d="M12 8.5v6M9 11.5h6"/></svg></button>
@@ -6529,6 +6647,93 @@ document.addEventListener('keydown', function (e) {
       if (!document.hidden) { refreshWx(false); }
     });
     window.addEventListener('online', function () { refreshWx(true); });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+
+// ============================================
+// ÜST BAR: DOLAR / EURO (TCMB resmi döviz satış kuru)
+// ============================================
+(function () {
+  var CACHE_KEY = 'ai_hdr_fx_v1';
+  var REFRESH_MS = 60 * 1000;      // sayfa açıkken dakikada bir kontrol eder
+  var fetching = false, failCount = 0;
+
+  function $(id) { return document.getElementById(id); }
+  function fmt(v) {
+    try { return Number(v).toLocaleString('tr-TR', { minimumFractionDigits: 4, maximumFractionDigits: 4 }); }
+    catch (e) { return String(v); }
+  }
+  function fmtGold(v) {
+    try { return Number(v).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    catch (e) { return String(v); }
+  }
+  function render(d, stale) {
+    var box = $('hdrFx'), u = $('hdrFxUsdVal'), e = $('hdrFxEurVal');
+    if (!box || !u || !e || !d) return;
+    if (!(d.usd > 0) || !(d.eur > 0)) return;
+    u.textContent = fmt(d.usd);
+    e.textContent = fmt(d.eur);
+    var gv = $('hdrFxGoldVal'), gi = $('hdrFxGold'), gs = $('hdrFxGoldSep');
+    if (gv && gi && gs) {
+      var ok = d.gold > 0;
+      if (ok) gv.textContent = fmtGold(d.gold);
+      gi.classList.toggle('is-empty', !ok);
+      gs.classList.toggle('is-empty', !ok);
+    }
+    box.title = 'Dolar ve Euro: T.C. Merkez Bankası döviz satış kuru' + (d.date ? ' (' + d.date + ')' : '') + (d.gold > 0 ? ' | Gram altın (TL): canlı piyasa satış fiyatı' : '');
+    box.classList.remove('is-empty');
+    box.classList.toggle('is-stale', !!stale);
+    fit();
+  }
+  // Bar dar ekranda tasarsa yazi ve ikon boyutu, tum degerler gorunene kadar kademeli kucultulur.
+  function fit() {
+    var box = $('hdrFx');
+    if (!box || box.classList.contains('is-empty')) return;
+    var sc = 1;
+    box.style.setProperty('--fxs', '1');
+    while (box.scrollWidth > box.clientWidth + 1 && sc > 0.66) {
+      sc = Math.round((sc - 0.04) * 100) / 100;
+      box.style.setProperty('--fxs', String(sc));
+    }
+  }
+  function saveCache(d) {
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ usd: d.usd, eur: d.eur, gold: d.gold || 0, date: d.date || '' })); } catch (e) {}
+  }
+  function loadCache() {
+    try {
+      var o = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+      return (o && o.usd > 0 && o.eur > 0) ? o : null;
+    } catch (e) { return null; }
+  }
+  function retrySoon() {
+    // Ilk acilista ag henuz hazir degilse 60 sn beklemeden birkac kez daha dener.
+    if (failCount < 5) { failCount++; setTimeout(refresh, 3000); }
+  }
+  function refresh() {
+    if (fetching) return;
+    fetching = true;
+    fetch('/api/kur', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d && d.ok) { failCount = 0; render(d, !!d.stale); if (!d.stale) saveCache(d); }
+        else { retrySoon(); }
+      })
+      .catch(function () { retrySoon(); })
+      .then(function () { fetching = false; });
+  }
+  function init() {
+    var c = loadCache();
+    if (c) render(c, true);        // önceki değer anında görünür, arkada tazelenir
+    refresh();
+    setInterval(refresh, REFRESH_MS);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) refresh(); });
+    window.addEventListener('online', refresh);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('resize', fit);
+    window.addEventListener('orientationchange', fit);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
