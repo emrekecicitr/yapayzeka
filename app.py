@@ -4204,7 +4204,7 @@ html, body { height: 100%; background: var(--obsidian); color: var(--ivory); fon
 .input-wrapper { position: relative; display: flex; flex-direction: column; width: 100%; max-width: 720px; margin: 0 auto; background: var(--mb-bg); border: 1px solid var(--mb-border); border-radius: 24px; padding: 10px; gap: 0; box-shadow: 0 8px 24px rgba(0,0,0,0.28); transition: border-color .2s ease; }
 .input-wrapper:focus-within { border-color: #6E6155; }
 .input-wrapper textarea { width: 100%; background: transparent; border: none; outline: none; resize: none; font-family: 'Manrope', sans-serif; font-size: 16px; font-weight: 400; color: var(--mb-text); caret-color: var(--mb-text); line-height: var(--ta-lh); padding: var(--ta-py) 8px; margin: 0 0 8px; display: block; white-space: pre-wrap; word-wrap: break-word; overflow-y: hidden; overflow-x: hidden; height: calc(var(--ta-lh) + var(--ta-py) * 2); min-height: calc(var(--ta-lh) + var(--ta-py) * 2); max-height: 20vh; transition: height .18s cubic-bezier(.2,.8,.2,1); }
-.input-wrapper textarea::placeholder { color: var(--mb-muted); font-weight: 400; }
+.input-wrapper textarea::placeholder { color: var(--mb-muted); font-family: inherit; font-size: inherit; font-weight: 400; font-style: normal; letter-spacing: inherit; opacity: 1; }
 .input-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: var(--btn); }
 .input-row-left { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; }
 .input-row-right { display: flex; align-items: center; gap: 8px; flex: none; }
@@ -4417,18 +4417,18 @@ html, body { height: 100%; background: var(--obsidian); color: var(--ivory); fon
 
 /* ============ CLAUDE TEMASI: yalnizca renk, golge, kenarlik, yazi tipi. Yerlesim ve boyut kurallarina dokunmaz. ============ */
 :root {
-  --obsidian: #2B2B29; --obsidian-2: #232321; --obsidian-3: #373735;
+  --obsidian: #1E1A17; --obsidian-2: #232321; --obsidian-3: #373735;
   --hairline: #4C4C48; --hairline-soft: #3A3A37;
   --ivory: #FAF9F5; --stone: #C2C0B6; --stone-dim: #9C9A92;
   --brass: #D97757; --brass-bright: #E8906F; --brass-dim: rgba(217,119,87,0.12);
   --code-bg: #232321; --meta-bright: #C2C0B6; --time-gray: #9C9A92; --ink-dim: #DEDCD1;
   --cl-accent: #D97757; --cl-accent-hover: #C6613F;
 }
-html, body { background: #2B2B29; }
+html, body { background: #1E1A17; }
 ::selection { background: rgba(217,119,87,0.30); color: #FAF9F5; }
-.main-content, .chat-area, .input-area { background: #2B2B29; }
+.main-content, .chat-area, .input-area { background: #1E1A17; }
 .sidebar { background: #232321; border-right-color: #3A3A37; }
-.header { background: rgba(43,43,41,0.80); }
+.header { background: rgba(30,26,23,0.80); }
 .sidebar-header .seal, .header-brand .seal { background: #D97757; border-color: transparent; color: #FAF9F5; box-shadow: none; }
 .pulse-orb { background: transparent; border: none; color: #D97757; box-shadow: none; }
 .welcome-title { font-family: 'Fraunces', Georgia, serif; font-weight: 400; color: #FAF9F5; text-shadow: none; }
@@ -4440,21 +4440,21 @@ html, body { background: #2B2B29; }
 .bubble.ai-bubble code { background: rgba(250,249,245,0.08); }
 
 /* Giris alani: Claude kartı */
-.input-wrapper { --mb-bg: #373735; --mb-border: #4C4C48; --mb-btn: #454542; --mb-btn-hover: #4C4C48; --mb-text: #FAF9F5; --mb-muted: #8B8A84; --mb-icon: #C2C0B6; --mb-menu-bg: #343432; --mb-menu-border: #4C4C48; --mb-coffee: transparent; --mb-coffee-hover: rgba(250,249,245,0.08); --mb-coffee-deep: #4C4C48; --mb-coffee-ink: #C2C0B6; }
-.input-wrapper { background: #373735; border-color: #4C4C48; box-shadow: 0 4px 24px rgba(0,0,0,0.35); }
-.input-wrapper:focus-within { border-color: #5E5E59; }
+.input-wrapper { --mb-bg: #242120; --mb-border: #34302C; --mb-btn: #36322F; --mb-btn-hover: #413C38; --mb-text: #FAF9F5; --mb-muted: #8E8A83; --mb-icon: #C6C2B8; --mb-menu-bg: #2A2725; --mb-menu-border: #3A3632; --mb-coffee: transparent; --mb-coffee-hover: rgba(250,249,245,0.08); --mb-coffee-deep: #4C4C48; --mb-coffee-ink: #C2C0B6; }
+.input-wrapper { background: #242120; border-color: #34302C; box-shadow: 0 4px 24px rgba(0,0,0,0.30); }
+.input-wrapper:focus-within { border-color: #46413C; }
 .input-wrapper.voice-listening { border-color: #D97757; }
 
 /* Butonlar (yalnizca gorunum, konumlar ayni) */
-.act-btn { background: #454542; color: #FAF9F5; box-shadow: none; }
-.model-pill { background: #454542; color: #FAF9F5; border-radius: 999px; box-shadow: none; }
+.act-btn { background: #36322F; color: #FAF9F5; box-shadow: none; }
+.model-pill { background: #36322F; color: #FAF9F5; border-radius: 999px; box-shadow: none; }
 .model-pill .mp-sub { color: #C2C0B6; }
 .send-btn { background: #D97757; color: #FAF9F5; box-shadow: none; }
 .talk-btn { background: #F7F7F3; color: #1A1A19; box-shadow: none; }
 .talk-btn.is-active { background: #D97757; color: #FAF9F5; }
 @media (hover: hover) {
-  .act-btn:hover { background: #4C4C48; }
-  .model-pill:hover { background: #4C4C48; }
+  .act-btn:hover { background: #413C38; }
+  .model-pill:hover { background: #413C38; }
   .send-btn:hover:not(:disabled) { background: #C6613F; }
   .talk-btn:hover { background: #E8E6DC; }
 }
@@ -4521,7 +4521,7 @@ html, body { background: #2B2B29; }
 .sidebar-header { padding: 16px 18px 0; border-bottom: none; }
 
 /* Mikrofon (sesle yaz) butonu: artı butonuyla ayni boyut ve renk */
-.mic-btn { width: var(--btn); height: var(--btn); padding: 0; border: none; background: #454542; color: #C2C0B6; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: background-color .15s ease, color .15s ease, transform .15s ease; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+.mic-btn { width: var(--btn); height: var(--btn); padding: 0; border: none; background: #36322F; color: #C2C0B6; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: background-color .15s ease, color .15s ease, transform .15s ease; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
 .mic-btn svg { width: 18px; height: 18px; }
 .mic-btn:active { transform: scale(0.94); }
 .mic-btn:focus { outline: none; }
@@ -4547,15 +4547,6 @@ html, body { background: #2B2B29; }
     <header class="header">
       <div class="header-left">
         <button class="sidebar-toggle" onclick="toggleSidebar()" id="sidebarToggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg></button>
-        <div class="hdr-clock" id="hdrClock" lang="tr">
-          <div class="hdr-wx is-loading no-ico is-msg" id="hdrWx" role="button" aria-label="Hava durumu">
-            <span class="hdr-wx-ico" id="hdrWxIco" aria-hidden="true"></span>
-            <span class="hdr-wx-txt">
-              <span class="hdr-wx-temp" id="hdrWxTemp"></span>
-              <span class="hdr-wx-desc" id="hdrWxDesc">Hava durumu alınıyor…</span>
-            </span>
-          </div>
-        </div>
       </div>
       <div class="header-actions">
         <button class="icon-btn" id="hdrHomeBtn" type="button" onclick="goHome()" title="Yeni sohbet" aria-label="Yeni sohbet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/><path d="M12 8.5v6M9 11.5h6"/></svg></button>
@@ -4588,7 +4579,7 @@ html, body { background: #2B2B29; }
       <img id="filePreviewImg" class="file-preview-img">
       <div class="file-badge" id="fileBadge" onclick="removeFile()"><span id="fileBadgeName"></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:9px;height:9px;flex-shrink:0"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
       <div class="input-wrapper" id="inputWrapper">
-        <textarea id="msgInput" rows="1" placeholder="Sor, birlikte çözelim."></textarea>
+        <textarea id="msgInput" rows="1" placeholder="Stratejini belirleyebilirim."></textarea>
         <div class="input-row">
           <div class="input-row-left">
             <button class="act-btn" id="plusBtn" type="button" onclick="toggleMbMenu('plus', event)" title="Ekle" aria-label="Ekle" aria-haspopup="true" aria-expanded="false">
