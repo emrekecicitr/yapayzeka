@@ -762,14 +762,14 @@ def parse_ara_komutu(text):
     return False, t
 
 # ============================================
-# UZMAN MODU ("Alan:" on eki) - internet aramasindan BAGIMSIZ
+# UZMAN MODU - arayuzdeki "Uzman" dugmesiyle secilir; internet aramasindan BAGIMSIZDIR
 # ============================================
-# Mesaj "Hukuk:", "Finans:", "Kod:", "Saglik:", "Yazisma:", "Strateji:", "Ogrenme:" ile baslarsa
-# SADECE o mesaj icin ilgili uzman bakisi calisir. Iki ozellik birbirine KARISMAZ:
-#   Hukuk: kira artisi en fazla ne kadar olabilir     -> sadece uzman modu (arama YOK)
-#   kira artisi en fazla ne kadar olabilir?           -> sadece arama (uzman modu YOK)
-#   Finans: bugun altin alinir mi?                    -> uzman modu + arama
-# Alan adi buyuk/kucuk harf ve Turkce karakter (ı/i, ş/s, ğ/g, ö/o, ü/u, ç/c) farkindan etkilenmez.
+# Mod, istekle gelen 'expert' alanindan (hukuk, finans, kod, saglik, yazisma, strateji, ogrenme) belirlenir ve
+# arayuzde sohbet bazli SABIT tutulur. Mesaj metni modu ETKILEMEZ (mesajin basina yazilan "Hukuk:" gibi ifadeler
+# artik sadece normal metindir). Iki ozellik birbirine KARISMAZ:
+#   Uzman butonu: Hukuk + "kira artisi en fazla ne kadar olabilir"   -> sadece uzman modu (arama YOK)
+#   Uzman butonu kapali + "kira artisi en fazla ne kadar olabilir?"  -> sadece arama (uzman modu YOK)
+#   Uzman butonu: Finans + "bugun altin alinir mi?"                  -> uzman modu + arama
 # Sistem mesaji DEGISMEZ (prompt cache ve kayitli ozel talimatlar bozulmasin diye); mod talimati
 # yalnizca ilgili mesajin basina, zaman notu gibi eklenir ve gecmise KAYDEDILMEZ.
 UZMAN_MODLARI = {
@@ -949,42 +949,333 @@ UZMAN_MODLARI = {
 
 # Turkce karakterleri sadelestirir; "SAĞLIK", "saglik", "Sağlık" hepsi 'saglik' olur.
 _MOD_FOLD_TABLO = str.maketrans({'ı': 'i', 'ş': 's', 'ğ': 'g', 'ü': 'u', 'ö': 'o', 'ç': 'c', 'â': 'a', 'î': 'i', 'û': 'u'})
-# Mesajin EN BASINDA: harflerden olusan kisa bir kelime + iki nokta (ASCII veya tam genislikte) + govde.
-_MOD_RE = re.compile(r'^([^\W\d_]{2,10})[ \t]*[:\uFF1A]\s*(.*)$', re.DOTALL)
-
 def _mod_fold(s):
     return (s or '').replace('İ', 'i').replace('I', 'ı').lower().translate(_MOD_FOLD_TABLO)
 
-def parse_uzman_modu(text, has_file=False):
-    """(mod_sozlugu | None, govde) doner. Mesaj listedeki bir alan adi ve iki nokta ile basliyorsa
-    ve iki noktadan sonra icerik varsa (ya da ek dosya/gorsel varsa) uzman modudur; govde alan adi
-    olmadan kalan metindir. Aksi halde (None, mesaj) doner ve mesaj HIC degistirilmez."""
-    t = (text or '').strip()
-    m = _MOD_RE.match(t)
-    if not m:
-        return None, t
-    mod = UZMAN_MODLARI.get(_mod_fold(m.group(1)))
-    if not mod:
-        return None, t
-    govde = m.group(2).strip()
-    govde_bos = not govde.strip(''.join(_SORU_ISARETLERI) + ' \t\r\n')
-    if govde_bos and not has_file:
-        return None, t  # "Hukuk:" ya da "Hukuk:?" tek basina: eskisi gibi normal mesaj
-    return mod, govde
-
 def resolve_uzman_modu(text, has_file=False, secili=None):
-    """Uzman modunu belirler. Oncelik: mesajin basindaki yazili 'Alan:' on eki; yoksa arayuzdeki
-    (sohbet bazli, sabit) uzman dugmesinin gonderdigi 'secili' deger. Gecersiz/bos/bilinmeyen secili
-    deger SESSIZCE yok sayilir (hata vermez, mod acilmaz). (mod | None, govde) doner."""
-    mod, govde = parse_uzman_modu(text, has_file)
-    if mod:
-        return mod, govde
+    """Uzman modunu YALNIZCA arayuzdeki (sohbet bazli, sabit) uzman dugmesinin gonderdigi 'secili' degerden belirler.
+    Mesaj metni (basindaki 'Hukuk:' gibi ifadeler dahil) modu degistirmez. Gecersiz/bos/bilinmeyen/yanlis tipte
+    deger SESSIZCE yok sayilir (hata vermez, mod acilmaz). (mod | None, govde) doner; govde mesajin kendisidir.
+    has_file su an kullanilmaz, cagiranlarla uyum icin imzada kalir."""
     t = (text or '').strip()
     if isinstance(secili, str):
         secili_mod = UZMAN_MODLARI.get(_mod_fold(secili.strip()))
         if secili_mod:
             return secili_mod, t
     return None, t
+
+# ============================================
+# UZMAN MODU + INTERNET ARAMASI: kural uyumu
+# ============================================
+# Arama sonucuna eklenen genel kurallar kisa cevap, kaynak adi yazmama ve yalnizca sonuclara dayanma ister.
+# Uzman modlari ise yapilandirilmis cevap, kaynagin/kurumun belirtilmesi ve uzman cercevesi ister. Mesajda uzman modu
+# da varsa kurallar asagidaki gibi uyumlandirilir (yalnizca ilgili cumleler degisir, geri kalan kurallar AYNEN kalir;
+# uzman modu yokken kural metni HIC degismez). Eslesmeyen bir cumle olursa (kural metni ileride degisirse) o degisiklik
+# atlanir, oncelik cumlesi yine eklenir; hata firlatmaz.
+_UZMAN_ARAMA_ONCELIK = (
+    'UZMAN MODU ÖNCELİĞİ: Bu mesajda uzman modu notu da var. Çakışma olursa sıra şöyledir: önce güvenlik önceliği; sonra aşağıdaki '
+    'tarih, sayı, kaynak ve URL kuralları; sonra uzman modunun cevap yapısı ve ayrıntı düzeyi; en son kısa cevap kuralları (1 ve 6d). ')
+_UZMAN_ARAMA_DEGISIKLIKLERI = (
+    ('1) İlk cümlede doğrudan cevabı ver; ardından yalnızca soruyu tamamlayan en önemli ayrıntıları ekle. Giriş cümlesi, soruyu tekrar etme ve dolgu yazma.',
+     '1) İlk cümlede doğrudan sonucu ver; ardından uzman modu notundaki cevap yapısına göre gerekçeyi ve ayrıntıları ekle. Giriş cümlesi, soruyu tekrar etme ve dolgu yazma.'),
+    ('2) Cevabı YALNIZCA bu sonuçlara ve konuşmaya dayandır; sonuçlarda olmayan tarih, sayı, isim, sürüm veya iddiayı kendi hafızandan EKLEME.',
+     '2) Güncel ve değişken olguları (tarih, rakam, oran, tutar, süre, madde numarası, mevzuat metni, karar, isim, sürüm, fiyat) YALNIZCA bu sonuçlardan al; '
+     'sonuçlarda olmayan bir olguyu kendi hafızandan EKLEME. Kavramsal çerçeve, usul, yorum ve riskler için uzman bilgini kullanabilirsin; ancak sonuçlarla '
+     'çelişirse sonuçları esas al ve emin olmadığın hiçbir sayı, madde veya karar yazma.'),
+    ('Cevabın içine site adı, alan adı veya parantezli kaynak yazma. Cevap kısa olsun: önce değer, sonra en fazla bir açıklama cümlesi.',
+     'Cevabın içine alan adı, URL veya parantezli kaynak yazma; ancak kurumun veya belgenin adını (Resmi Gazete, TCMB, Gelir İdaresi Başkanlığı, '
+     'Sağlık Bakanlığı, kanun adı, karar adı gibi) kaynak metinde geçiyorsa doğal bir cümle içinde belirtebilirsin. Cevabın uzunluğunu ve yapısını uzman modu '
+     'belirler: yalnızca bir değer soran sorularda kısa (önce değer, sonra en fazla bir açıklama cümlesi), karar ve değerlendirme sorularında gerekçeli ve eksiksiz yaz.'),
+)
+
+def _uzman_arama_kurallari(kurallar):
+    """Arama kurallari metnini uzman modu ile uyumlu hale getirir. ASLA exception firlatmaz; hata olursa girdiyi aynen dondurur."""
+    try:
+        s = kurallar
+        for eski, yeni in _UZMAN_ARAMA_DEGISIKLIKLERI:
+            if eski in s:
+                s = s.replace(eski, yeni, 1)
+            else:
+                print('[arama] uzman kural uyumu: eslesmeyen cumle atlandi')
+        isaret = 'KURALLAR: 0) '
+        if isaret in s:
+            s = s.replace(isaret, 'KURALLAR: ' + _UZMAN_ARAMA_ONCELIK + '0) ', 1)
+        else:
+            print('[arama] uzman kural uyumu: oncelik cumlesi eklenemedi')
+        return s
+    except Exception as e:
+        print(f'[arama] uzman kural uyumu hatasi: {type(e).__name__}')
+        return kurallar
+
+# ============================================
+# GROQ LIMIT YONETIMI (ucretsiz plan: model basina dakikalik token siniri, organizasyon duzeyinde)
+# ============================================
+# Groq her yanitta x-ratelimit-limit-tokens (TPM tavani) ve x-ratelimit-remaining-tokens (dakikalik pencerede kalan)
+# basliklarini verir; onbellege alinan (cached) tokenlar limite SAYILMAZ. Burada:
+#   1) Limit ve kalan kapasite her yanittan OGRENILIR (ilk yanittan once ucretsiz plan varsayilir: 8000 TPM).
+#   2) Limit dusukse ("kisitli") istek, modele gitmeden once limite SIGDIRILIR: seviyeli sikistirma (kisa arama kurallari,
+#      daha az arama baglami, kisa uzman notu, gerekirse kisa gecmis) ve cikti payi limite gore sinirlanir.
+#   3) Kapasitesi dolu model once atlanir (digerlerinin ayri kovasi vardir), gerekirse kisa sure beklenir.
+#   4) Saglayici yine de "cok buyuk" (413/400) derse bir ust sikistirma seviyesiyle yeniden denenir.
+# Limit yuksekse (ucretli plan) hicbir sey degismez; mesajlar eskisi gibi tam gonderilir.
+GROQ_TPM_VARSAYILAN = 8000        # ucretsiz plan; yanit basliklarindan ogrenilen deger bunu ezer
+GROQ_KISITLI_ESIK = 30000         # TPM bunun altindaysa kisitli mod
+GROQ_BEKLEME_MAX = 20.0           # tek bir beklemenin ust siniri (sn)
+GROQ_BEKLEME_TOPLAM_MAX = 30.0    # bir istek icin toplam bekleme ust siniri (sn)
+GROQ_GUVENLIK_PAYI = 250          # token
+GROQ_CPT_BASLANGIC = 2.8          # Turkce icin karakter/token tahmini; yanitlardaki usage bilgisinden ogrenilir
+GROQ_CIKTI_HEDEF = 2600           # kisitli modda "rahat" sayilan cikti payi (token)
+GROQ_CIKTI_MIN = 600              # cikti payi bunun altina duserse seviye/model degistirilir
+_RL_LOCK = threading.Lock()
+_RL_STATE = {}                    # model -> {'limit': int|None, 'remaining': int|None, 'seen_at': float}
+_RL_CPT = {'v': GROQ_CPT_BASLANGIC}
+_KONTEKST_SINIRLARI = {1: 4800, 2: 3000, 3: 1200}   # sikistirma seviyesine gore arama baglami ust siniri (karakter)
+
+def _rl_hdr_int(headers, name):
+    try:
+        v = headers.get(name)
+        if v is None:
+            return None
+        return int(float(str(v).strip()))
+    except Exception:
+        return None
+
+def _rl_update(model, headers):
+    """Yanit basliklarindan limit ve kalan kapasiteyi ogrenir. Asla exception firlatmaz."""
+    try:
+        lim = _rl_hdr_int(headers, 'x-ratelimit-limit-tokens')
+        rem = _rl_hdr_int(headers, 'x-ratelimit-remaining-tokens')
+        with _RL_LOCK:
+            st = _RL_STATE.setdefault(model, {'limit': None, 'remaining': None, 'seen_at': 0.0})
+            if lim and lim > 0:
+                st['limit'] = lim
+            if rem is not None and rem >= 0:
+                st['remaining'] = rem
+                st['seen_at'] = time.time()
+    except Exception:
+        pass
+
+def _rl_ogren_hata(model, body):
+    """413/429 govdesindeki 'Limit N' bilgisinden TPM tavanini ogrenir."""
+    try:
+        b = body or ''
+        if 'tokens per minute' in b.lower():
+            mt = re.search(r'Limit\s+(\d+)', b)
+            if mt and int(mt.group(1)) > 0:
+                with _RL_LOCK:
+                    st = _RL_STATE.setdefault(model, {'limit': None, 'remaining': None, 'seen_at': 0.0})
+                    st['limit'] = int(mt.group(1))
+    except Exception:
+        pass
+
+def _rl_limit(model):
+    with _RL_LOCK:
+        st = _RL_STATE.get(model)
+        v = st.get('limit') if st else None
+    return v if v else GROQ_TPM_VARSAYILAN
+
+def _rl_kisitli(model):
+    return _rl_limit(model) < GROQ_KISITLI_ESIK
+
+def _rl_available(model, now=None):
+    """Su an bu modelde tahmini kalan dakikalik token kapasitesi (kova dakikada limit kadar dolar)."""
+    now = now or time.time()
+    lim = _rl_limit(model)
+    with _RL_LOCK:
+        st = _RL_STATE.get(model)
+        if not st or st.get('remaining') is None:
+            return lim
+        v = st['remaining'] + max(0.0, now - st['seen_at']) * lim / 60.0
+    return int(min(lim, max(0, v)))
+
+def _rl_charge(model, tokens):
+    """Harcanan/ayrilan tokeni yerel kapasite tahmininden dus (bir sonraki yanit basligi dogrusunu getirir)."""
+    try:
+        now = time.time()
+        cur = _rl_available(model, now)
+        with _RL_LOCK:
+            st = _RL_STATE.setdefault(model, {'limit': None, 'remaining': None, 'seen_at': 0.0})
+            st['remaining'] = max(0, cur - int(tokens))
+            st['seen_at'] = now
+    except Exception:
+        pass
+
+def _rl_wait_for(model, need):
+    """Bu modelde 'need' token kapasitesi acilana kadar gereken sure (sn). Hic acilmayacaksa sonsuz."""
+    lim = _rl_limit(model)
+    if need > lim:
+        return float('inf')
+    avail = _rl_available(model)
+    if avail >= need:
+        return 0.0
+    return (need - avail) * 60.0 / lim
+
+def _rl_est(chars):
+    return int(chars / _RL_CPT['v']) + 1
+
+def _rl_ogren_413(body, chars, sent_out):
+    """413 govdesindeki 'Requested N' (girdi + istenen cikti) bilgisinden GERCEK prompt tokenini cikarip karakter/token oranini
+    duzeltir (yalnizca asagi yonde: istek zaten reddedildi, tahmin iyimserdi). Ogrendiyse True doner."""
+    try:
+        mt = re.search(r'Requested\s+(\d+)', body or '')
+        if not mt:
+            return False
+        prompt_true = int(mt.group(1)) - int(sent_out or 0)
+        if prompt_true < 200 or chars < 500:
+            return False
+        yeni = min(4.5, max(2.0, chars / float(prompt_true)))
+        if yeni < _RL_CPT['v']:
+            _RL_CPT['v'] = yeni
+            return True
+        return False
+    except Exception:
+        return False
+
+def _rl_ogren_cpt(chars, prompt_tokens):
+    """Yanittaki gercek prompt_tokens ile karakter/token oranini ogrenir (0.7 / 0.3 ortalama, 2.0 ile 4.5 arasi)."""
+    try:
+        if prompt_tokens and prompt_tokens > 200 and chars > 500:
+            oran = chars / float(prompt_tokens)
+            _RL_CPT['v'] = min(4.5, max(2.0, 0.7 * _RL_CPT['v'] + 0.3 * oran))
+    except Exception:
+        pass
+
+def _msgs_chars(msgs):
+    n = 0
+    for mm in msgs:
+        c = mm.get('content')
+        if isinstance(c, str):
+            n += len(c) + 12
+        elif isinstance(c, list):
+            for part in c:
+                if isinstance(part, dict):
+                    n += len(str(part.get('text') or '')) + 12
+                    if part.get('type') == 'image_url':
+                        n += 4200   # gorsel yaklasik 1500 token sayilir (gercek deger 413/usage geri bildirimiyle duzeltilir)
+    return n
+
+_BLOK_BASI = re.compile(r'^\[(\d+)\] ', re.M)
+
+def _fit_context(ctx, max_chars):
+    """Arama baglamini max_chars'a indirir: baslik satirlari korunur, sonuc bloklari sirayla (alaka sirasi) tutulur,
+    sigmayan bloklar atilir. (yeni_baglam, tutulan_blok_sayisi | None) doner; degisiklik yoksa sayi None.
+    Asla exception firlatmaz."""
+    try:
+        if not ctx or len(ctx) <= max_chars:
+            return ctx, None
+        ms = list(_BLOK_BASI.finditer(ctx))
+        if not ms:
+            return ctx[:max_chars], None
+        bas = ctx[:ms[0].start()].rstrip('\n')
+        bloklar = []
+        for i, mt in enumerate(ms):
+            son = ms[i + 1].start() if i + 1 < len(ms) else len(ctx)
+            bloklar.append(ctx[mt.start():son].rstrip('\n'))
+        out = bas
+        total = len(out)
+        kept = 0
+        for b in bloklar:
+            if total + 1 + len(b) > max_chars:
+                room = max_chars - total - 1
+                if kept == 0 and room >= 300:
+                    out += '\n' + b[:room]
+                    kept = 1
+                break
+            out += '\n' + b
+            total += 1 + len(b)
+            kept += 1
+        if kept == 0 and bloklar:
+            out += '\n' + bloklar[0][:max(300, max_chars - total - 1)]
+            kept = 1
+        return out, kept
+    except Exception:
+        return ctx, None
+
+def _history_trim(msgs, keep_last=4):
+    """Bastaki sistem mesajlarini korur, konusma gecmisini son keep_last mesaja indirir (son mesaj her zaman kalir)."""
+    try:
+        i = 0
+        while i < len(msgs) and msgs[i].get('role') == 'system':
+            i += 1
+        head, rest = msgs[:i], msgs[i:]
+        if len(rest) <= keep_last:
+            return msgs
+        rest = rest[-keep_last:]
+        while len(rest) > 1 and rest[0].get('role') != 'user':
+            rest = rest[1:]
+        return head + rest
+    except Exception:
+        return msgs
+
+# Kisitli modda (seviye 1 ve ustu) kullanilan kisa arama kurallari: kurallarin ozu korunur, tekrar ve ornekler kisaltilir.
+# 0, 1, 2 ve 6d cumleleri tam metinle BIREBIR aynidir (uzman modu uyumlandirmasi ayni cumleler uzerinden calisir).
+_ARAMA_KURALLARI_KOMPAKT = (
+    '[İNTERNET ARAMA SONUÇLARI (Google + web; arama bugünün tarihinde yapıldı; sonuçlar soruya alakaya göre sıralıdır). KURALLAR: '
+    '0) Kullanıcının mesajı soru işaretiyle (?) bitiyorsa bu yalnızca arama tetikleyicisidir; sorunun kendisini bu sonuçlara dayanarak yanıtla. '
+    '1) İlk cümlede doğrudan cevabı ver; ardından yalnızca soruyu tamamlayan en önemli ayrıntıları ekle. Giriş cümlesi, soruyu tekrar etme ve dolgu yazma. '
+    '2) Cevabı YALNIZCA bu sonuçlara ve konuşmaya dayandır; sonuçlarda olmayan tarih, sayı, isim, sürüm veya iddiayı kendi hafızandan EKLEME. '
+    '3) Rakam, tarih ve özel isimleri kaynaktan aynen aktar. Zamanla değişen her bilgide (rakam, oran, fiyat, kur, skor, faiz, yasa, sürüm, görev) '
+    'verinin hangi tarih veya dönem için geçerli olduğunu cümle içinde yaz (örneğin "3 Ekim itibarıyla"); tarihi yalnızca kaynak başlığındaki '
+    'etiketlerden, CANLI SAYFA satırından veya kaynak metninden al, yoksa tarih uydurma ve tarihin belirsiz olduğunu tek kısa ifadeyle söyle. '
+    'Zamandan bağımsız bilgide (tanım, tarihçe, nasıl yapılır) tarih yazma. '
+    '4) İlgisiz sonuçları ve aynı isimli farklı kişi, ürün veya yer karışıklıklarını yok say; birden çok kaynakta tekrarlanan bilgiye daha çok güven. '
+    '5) Kaynaklar çelişirse en yeni ve en güvenilir olanı tercih et ve çelişkiyi tek cümleyle belirt. '
+    '6) Sonuçlar soruya kısmen cevap veriyorsa bulduğunu ver, yalnızca eksik kısım için "aramada net bilgi bulunamadı" de; eksiği tahmin etme. '
+    '6b) Yalnızca Türkçe yaz, İngilizce metni ve tarihi Türkçeye çevir; uzun tire (—) ve kısa tire (–) kullanma. '
+    '6c) ANLIK VERİ (fiyat, kur, skor, hava durumu, borsa): CANLI SAYFA satırı varsa rakamı oradan al, arama özetinden daha günceldir; yoksa özetteki '
+    'rakamı kullan ve eski olabileceğini belirt. Başlıktaki veri saati verinin gerçek saatidir: 60 dakikadan eski veya VERİ SAATİ ESKİ etiketli veriyi '
+    'güncel diye sunma; yalnızca en yeni saatli rakamı saatiyle ver, farklı saatleri karıştırma; güncel saatli kaynak yoksa "ulaşabildiğim en son veri '
+    'saat X, anlık olmayabilir" de; borsa kapalıysa kapanış değeri olduğunu belirt. '
+    '6d) Kur ve fiyatları en fazla 2 ondalık basamakla yaz. Cevabın içine site adı, alan adı veya parantezli kaynak yazma. '
+    'Cevap kısa olsun: önce değer, sonra en fazla bir açıklama cümlesi. '
+    '6e) Güncel veri sorulduysa yılı kontrol et; ESKİ DÖNEM etiketli veya eski yıllı sonucu yalnızca güncel karşılığı yoksa kullan ve yılını belirt. '
+    '6f) "sayfa yayın tarihi" yayın tarihidir, "sayfa güncelleme" içeriğin yeni olduğunu kanıtlamaz, "düşük güven" tarihi yalnızca ipucudur; '
+    '"tarihi belirsiz" kaynağı zamana bağlı iddiada tek başına dayanak yapma, tarihli kaynakla doğrula; tarihli kaynak yoksa kullan ve sonda '
+    'tarihinin belirsiz olduğunu söyle. '
+    '7) KAYNAK BELİRTME KONUSUNDA KESİN KURAL: cevaba ASLA satır içi "(Kaynak: ...)" ekleme, kendi kaynak başlığı veya linki oluşturma ve ASLA '
+    'herhangi bir URL yazma; kaynak linkleri cevabının sonuna SİSTEM TARAFINDAN OTOMATİK eklenir, bunu sen yapma, sadece soruyu normal şekilde yanıtla:\n'
+)
+
+# En kisitli seviye (3): kurallarin yalniz cekirdegi. 0, 1, 2 ve 6d cumleleri tam metinle BIREBIR aynidir.
+_ARAMA_KURALLARI_ULTRA = (
+    '[İNTERNET ARAMA SONUÇLARI (Google + web; arama bugünün tarihinde yapıldı; sonuçlar soruya alakaya göre sıralıdır). KURALLAR: '
+    '0) Kullanıcının mesajı soru işaretiyle (?) bitiyorsa bu yalnızca arama tetikleyicisidir; sorunun kendisini bu sonuçlara dayanarak yanıtla. '
+    '1) İlk cümlede doğrudan cevabı ver; ardından yalnızca soruyu tamamlayan en önemli ayrıntıları ekle. Giriş cümlesi, soruyu tekrar etme ve dolgu yazma. '
+    '2) Cevabı YALNIZCA bu sonuçlara ve konuşmaya dayandır; sonuçlarda olmayan tarih, sayı, isim, sürüm veya iddiayı kendi hafızandan EKLEME. '
+    '3) Rakam, tarih ve özel isimleri kaynaktan aynen aktar; zamanla değişen bilgide verinin tarihini cümle içinde yaz, tarihi yalnızca kaynaktaki '
+    'etiketlerden veya metinden al, yoksa tarih uydurma ve belirsiz olduğunu söyle. '
+    '4) İlgisiz sonuçları yok say; kaynaklar çelişirse en yeni ve güvenilir olanı seç ve çelişkiyi tek cümleyle belirt. '
+    '5) Eksik kısım için "aramada net bilgi bulunamadı" de; eksiği tahmin etme. '
+    '6) Yalnızca Türkçe yaz; uzun tire (—) ve kısa tire (–) kullanma. '
+    '6c) ANLIK VERİ: CANLI SAYFA satırındaki rakamı kullan; 60 dakikadan eski veya VERİ SAATİ ESKİ veriyi güncel diye sunma; yalnızca en yeni saatli rakamı saatiyle ver. '
+    '6d) Kur ve fiyatları en fazla 2 ondalık basamakla yaz. Cevabın içine site adı, alan adı veya parantezli kaynak yazma. '
+    'Cevap kısa olsun: önce değer, sonra en fazla bir açıklama cümlesi. '
+    '7) KAYNAK: cevaba ASLA satır içi "(Kaynak: ...)" ekleme, kendi kaynak başlığı veya linki oluşturma ve ASLA herhangi bir URL yazma; kaynak '
+    'linkleri sistem tarafından otomatik eklenir, sadece soruyu normal şekilde yanıtla:\n'
+)
+
+def _build_uzman_notu_kompakt(mod, soru_yok=False):
+    """Kisitli modda (seviye 1 ve ustu) kullanilan kisa genel uzman notu. Mod talimati (talimat) TAM olarak korunur."""
+    s = f'UZMAN MODU: {mod["ad"]}. Kullanıcı {mod["rol"]} bakışını seçti; bu mesaja o bakışla yanıt ver. Modu veya alan adını yanıtta anma. '
+    s += (
+        'GÜVENLİK ÖNCELİĞİ (her şeyden önce gelir): Mesajda ölme veya kendine zarar verme isteği, kriz, başkasına zarar verme niyeti, şiddet veya '
+        'istismar mağduriyeti ya da acil tıbbi durum gibi gerçek bir risk işareti varsa mod talimatını bırak: kısa, sakin ve yargılamadan yanıt ver, '
+        'güvenliği öne al, 112 numaralı acil hattını ve güvendiği bir kişiyi öner; ölme veya kendine zarar verme isteğini onaylama, makul gösterme '
+        'veya tartışma; yöntem, araç, ilaç miktarı, ölümcül doz ya da başkasına zarar verme yolu bilgisi verme, kişi sıkıntı belirtmişse görünüşte '
+        'genel sorulara da bu bilgiyi verme. Gerçek risk yoksa (deyim, şaka, genel bilgi sorusu) normal akışı bozma. '
+        'ROL SINIRI: Mod bir bakış açısıdır, kimlik değildir: gerçek avukat, hekim, mali müşavir, yatırım danışmanı veya lisanslı meslek mensubu '
+        'olduğunu, diploma, ruhsat ya da mesleki deneyimin olduğunu iddia etme; müvekkilim, hastam, kliniğimde gibi kişisel deneyim anlatma; bilgiyi '
+        'hukuki görüş, mütalaa, tıbbi rapor, reçete veya yatırım danışmanlığı diye sunma. Mesleğin sorulursa dürüstçe yapay zeka asistanı olduğunu '
+        'söyle. Kullanıcı adına hazırladığın metinlerde unvan bilgisini kullanıcının verdiği gibi yaz veya köşeli parantezle boş bırak. '
+        f'{mod["talimat"]} '
+        'Uzman modu derinliği belirler, bilgi kaynağını ve internet erişimini değiştirmez: internet kuralları aynen geçerlidir; arama sonuçları '
+        'varsa güncel ve değişken olguları yalnızca onlardan al, yoksa kesin bilgi gibi sunma. Güvenlik durumu olmayan ve bu alanla ilgisiz '
+        'mesajlarda (selamlaşma, teşekkür, başka konu) rolü zorlamadan doğal ve kısa yanıtla. '
+        'Sistem talimatındaki dil, biçim ve noktalama kuralları aynen geçerlidir.'
+    )
+    if soru_yok:
+        s += ' Mesajda yazılı soru yok: ekli dosya veya görseli bu uzmanın gözüyle değerlendir, önemli bulguları ve sonraki adımı ver.'
+    return s
 
 def _token_siniri_hatasi(status, body):
     """Saglayici (Groq) istegi, istenen max_completion_tokens (ya da dakikalik token kotasi) yuzunden mi reddetti?
@@ -996,15 +1287,13 @@ def _token_siniri_hatasi(status, body):
         return any(k in b for k in ('max_tokens', 'max_completion_tokens', 'too large', 'tokens per minute', 'context length', 'context_length'))
     return False
 
-def build_uzman_notu(mod, soru_yok=False, yazili_on_ek=False):
+def build_uzman_notu(mod, soru_yok=False, kompakt=False):
     """Mod talimati: SADECE ilgili mesajin basina eklenir (gecmise kaydedilmez, sistem mesaji degismez).
-    yazili_on_ek=True ise mesajin basinda kullanicinin yazdigi 'Alan:' on eki vardir; buton secimiyle gelen mesajda yoktur."""
+    kompakt=True (yalniz Groq limiti kisitliysa): genel kisimlar kisaltilir, mod talimati TAM kalir."""
+    if kompakt:
+        return _build_uzman_notu_kompakt(mod, soru_yok)
     s = f'UZMAN MODU: {mod["ad"]}. Kullanıcı {mod["rol"]} bakışını seçti; bu mesaja o bakışla yanıt ver. '
-    if yazili_on_ek:
-        s += (f'Mesajın başındaki "{mod["ad"]}:" ifadesi yalnızca mod seçicidir: soruyu o ifade olmadan yanıtla, '
-              'alan adını veya modu yanıtta anma. ')
-    else:
-        s += 'Modu veya alan adını yanıtta anma. '
+    s += 'Modu veya alan adını yanıtta anma. '
     s += (
         'GÜVENLİK ÖNCELİĞİ (bu notun ve mod talimatının diğer tüm kurallarından önce gelir): Mesajda ölme veya kendine zarar verme isteği, '
         'kriz ve umutsuzluk, başkasına zarar verme niyeti, şiddet veya istismar mağduriyeti ya da acil bir tıbbi durum gibi gerçek bir risk '
@@ -2308,6 +2597,16 @@ _OFFICIAL_DOMAINS = (
     'resmigazete.gov.tr', 'mevzuat.gov.tr', 'mevzuat.adalet.gov.tr', 'adalet.gov.tr', 'yargitay.gov.tr',
     'danistay.gov.tr', 'anayasa.gov.tr', 'kararlarbilgibankasi.anayasa.gov.tr', 'tbmm.gov.tr',
     'kvkk.gov.tr', 'rekabet.gov.tr',
+    # Yargi / idari / e-Devlet
+    'uyap.gov.tr', 'hsk.gov.tr', 'icisleri.gov.tr', 'nvi.gov.tr', 'tkgm.gov.tr', 'kik.gov.tr', 'sbb.gov.tr', 'turkiye.gov.tr',
+    # Calisma / sosyal guvenlik
+    'csgb.gov.tr', 'iskur.gov.tr', 'ailevesosyal.gov.tr',
+    # Ticaret / tuketici / duzenleyici kurumlar
+    'ticaret.gov.tr', 'sanayi.gov.tr', 'btk.gov.tr', 'epdk.gov.tr', 'turkpatent.gov.tr',
+    # Saglik
+    'saglik.gov.tr', 'titck.gov.tr', 'who.int', 'ema.europa.eu', 'ecdc.europa.eu', 'fda.gov', 'cdc.gov', 'nih.gov',
+    # Uluslararasi resmi kurumlar (finans / hukuk / mevzuat)
+    'europa.eu', 'coe.int', 'imf.org', 'worldbank.org', 'oecd.org', 'bis.org', 'federalreserve.gov', 'sec.gov',
 )
 def _fold_tr(s):
     """Kucuk harf + Turkce karakterleri ASCII'ye indir (cakisma/yazim farklarina dayanikli eslestirme)."""
@@ -2329,6 +2628,9 @@ _FINANS_HUKUK_RE = re.compile(
     r'cumhurbaskanligi karar\w*|kararname\w*|yargitay\w*|danistay\w*|anayasa\w*|mahkeme\w*|dava\w*|ceza\w*|'
     r'tazminat\w*|icra\w*|haciz\w*|miras\w*|bosanma\w*|kira artis\w*|kiraci\w*|ihtarname\w*|noter\w*|avukat\w*|'
     r'sozlesme\w*|kidem\w*|ihbar tazminat\w*|yasal\w*|kvkk|tck|tmk|hmk|cmk|'
+    r'isci\w*|isveren\w*|fesih\w*|tahliye\w*|nafaka\w*|velayet\w*|tuketici\w*|ayip\w*|cayma\w*|vekalet\w*|tapu\w*|kadastro\w*|'
+    r'imar\w*|ruhsat\w*|ihale\w*|arabuluc\w*|savcilik\w*|iddianame\w*|istinaf\w*|temyiz\w*|aihm|hakem heyet\w*|'
+    r'kdv|otv|stopaj\w*|beyanname\w*|muhtasar\w*|harc(?:lar\w*|in|i)?|iflas\w*|konkordato\w*|sigorta\w*|bagkur|sgk|ssk|'
     r'law|legal|legislation|regulation|lawsuit'
     r')\b'
 )
@@ -2339,6 +2641,31 @@ def _is_finance_legal_topic(queries):
         return bool(_FINANS_HUKUK_RE.search(_fold_tr(' | '.join(queries or []))))
     except Exception:
         return False
+
+_SAGLIK_RE = re.compile(
+    r'\b(?:'
+    r'saglik\w*|hastalik\w*|hastane\w*|doktor\w*|hekim\w*|ilac\w*|prospektus\w*|kullanma talimat\w*|yan etki\w*|tedavi\w*|belirti\w*|'
+    r'semptom\w*|teshis\w*|enfeksiyon\w*|virus\w*|bakteri\w*|antibiyotik\w*|hamile\w*|gebelik\w*|emzir\w*|bebek\w*|ates\w*|agri\w*|'
+    r'kanser\w*|diyabet\w*|tansiyon\w*|kolesterol\w*|vitamin\w*|covid\w*|grip\w*|dozaj\w*|dozu|asi takvim\w*|asilar\w*|'
+    r'health|disease|symptom\w*|medicine|medication|vaccine\w*|dosage|treatment|pregnan\w*|fever'
+    r')\b'
+)
+
+def _is_health_topic(queries):
+    """Arama sorgulari saglik konusunda mi? Hata olursa False (bonus verilmez)."""
+    try:
+        return bool(_SAGLIK_RE.search(_fold_tr(' | '.join(queries or []))))
+    except Exception:
+        return False
+
+# Uzman modunun resmi kaynak onceligini ZORUNLU actigi alanlar (anahtar kelime eslesmesi aranmaz).
+_UZMAN_RESMI_MODLARI = ('hukuk', 'finans', 'saglik')
+
+def _is_resmi_topic(queries, uzman=None):
+    """Resmi kaynak bonusu verilsin mi? Hukuk/Finans/Saglik uzman modunda HER ZAMAN; aksi halde konu anahtar kelimelerinden."""
+    if uzman in _UZMAN_RESMI_MODLARI:
+        return True
+    return _is_finance_legal_topic(queries) or _is_health_topic(queries)
 
 def _is_official_source(url_or_host):
     try:
@@ -2391,13 +2718,13 @@ def _relevance(item, term_sets):
         best = max(best, 0.65 * in_all / n + 0.35 * in_title / n)
     return best
 
-def _rerank_results(results, queries, fresh=False, guncel=False):
+def _rerank_results(results, queries, fresh=False, guncel=False, uzman=None):
     """Sonuclara alaka puani ekler, yeniden siralar, belirgin alakasizlari eler, ayni siteyi sinirlar.
     ASLA exception firlatmaz; hata olursa girdi listesini aynen dondurur."""
     try:
         term_sets = _query_term_sets(queries)
         cur_year = _tr_now().year
-        resmi_konu = _is_finance_legal_topic(queries)
+        resmi_konu = _is_resmi_topic(queries, uzman)
         resmi_sayisi = 0
         scored = []
         for r in results:
@@ -2453,7 +2780,7 @@ def _rerank_results(results, queries, fresh=False, guncel=False):
         print(f'[arama] siralama hatasi (siralama atlandi): {type(e).__name__}: {e}')
         return results
 
-def _build_context(queries, extras, results, guncel=False, live=False):
+def _build_context(queries, extras, results, guncel=False, live=False, resmi_etiket=False):
     lines = [f"Arama sorguları: {' | '.join(queries)} (arama tarihi: {_tr_now_str()})"]
     if live:
         lines.append(
@@ -2474,6 +2801,8 @@ def _build_context(queries, extras, results, guncel=False, live=False):
             if _ys:
                 head += f' | tespit edilen yıl: {max(_ys)}' + (' | ESKİ DÖNEM' if r.get('stale') else '')
         head += _date_tag(r)
+        if resmi_etiket and _is_official_source(r.get('url') or r.get('source')):
+            head += ' | resmi kurum kaynağı'
         if live and r.get('live_clock'):
             head += f" | veri saati: {r['live_clock']} ({_fmt_age(r.get('live_age'))})" + (' | VERİ SAATİ ESKİ' if r.get('live_stale') else '')
         body = []
@@ -2507,7 +2836,7 @@ _SEARCH_CACHE = {}
 _SEARCH_CACHE_LOCK = threading.Lock()
 
 def _cache_key(plan):
-    return json.dumps([plan.get('queries'), plan.get('zaman'), bool(plan.get('haber')), bool(plan.get('detay')), bool(plan.get('guncel'))],
+    return json.dumps([plan.get('queries'), plan.get('zaman'), bool(plan.get('haber')), bool(plan.get('detay')), bool(plan.get('guncel')), plan.get('uzman') or ''],
                       ensure_ascii=False)
 
 def _cache_get(key):
@@ -2700,6 +3029,7 @@ def _search_internet_ex_impl(plan, late=None):
     haber = bool(plan.get('haber'))
     derin = plan.get('detay', True) is not False
     guncel = bool(plan.get('guncel'))
+    uzman_alan = plan.get('uzman') if isinstance(plan.get('uzman'), str) else None
 
     ck = _cache_key(plan)
     cached = _cache_get(ck)
@@ -2790,7 +3120,7 @@ def _search_internet_ex_impl(plan, late=None):
     results = _merge_results(weighted)
     if not results:
         return _empty_search(True, errors or ['sonuc bulunamadi'])
-    results = _rerank_results(results, queries, fresh=bool(zaman or haber), guncel=guncel)
+    results = _rerank_results(results, queries, fresh=bool(zaman or haber), guncel=guncel, uzman=uzman_alan)
 
     # --- Sayfa okuma: detay isteniyorsa (ya da Google'in hazir cevabi yoksa) en iyi kaynaklari ac ---
     # Arama motorlarinin ozetleri saatler/gunler eski olabilir. Bu yuzden konu ne olursa olsun
@@ -2821,7 +3151,7 @@ def _search_internet_ex_impl(plan, late=None):
     live_stale = False
     if live:
         results, live_stale = _live_filter(results)
-    context, sources = _build_context(queries, extras, results, guncel=guncel, live=live)
+    context, sources = _build_context(queries, extras, results, guncel=guncel, live=live, resmi_etiket=(uzman_alan in _UZMAN_RESMI_MODLARI))
     out = {'context': context, 'sources': sources, 'attempted': True, 'errors': errors,
            'stale_top': _stale_top(results, guncel), 'live_stale': live_stale}
     if not degraded:
@@ -3125,7 +3455,7 @@ def _fresh_second_round(plan, question):
             base = f'{base} {_tr_now().year}'
         was_news = bool(plan.get('haber'))
         alt = {'queries': [base], 'zaman': 'yil' if was_news else 'ay', 'haber': not was_news,
-               'detay': True, 'guncel': True}
+               'detay': True, 'guncel': True, 'uzman': plan.get('uzman')}
         return search_internet_ex(alt)
     except Exception as e:
         print(f'[arama] ikinci tur hatasi: {type(e).__name__}: {e}')
@@ -3139,7 +3469,7 @@ def _live_second_round(plan, question):
         base = (qs[0] if qs else (question or '')).strip()[:260]
         if 'canlı' not in base.lower():
             base = f'{base} canlı anlık'
-        alt = {'queries': [base], 'zaman': 'gun', 'haber': False, 'detay': False, 'guncel': True}
+        alt = {'queries': [base], 'zaman': 'gun', 'haber': False, 'detay': False, 'guncel': True, 'uzman': plan.get('uzman')}
         return search_internet_ex(alt)
     except Exception as e:
         print(f'[arama] anlik ikinci tur hatasi: {type(e).__name__}: {e}')
@@ -3168,13 +3498,13 @@ def search_with_fallback(plan, question, late=None):
         tried = {json.dumps(plan.get('queries'), ensure_ascii=False)}
 
         def _variants():
-            yield {'queries': [q], 'zaman': None, 'haber': False, 'detay': True, 'guncel': bool(plan.get('guncel'))}
+            yield {'queries': [q], 'zaman': None, 'haber': False, 'detay': True, 'guncel': bool(plan.get('guncel')), 'uzman': plan.get('uzman')}
             kw = _keyword_query(q)
             if kw:
-                yield {'queries': [kw], 'zaman': None, 'haber': False, 'detay': True, 'guncel': bool(plan.get('guncel'))}
+                yield {'queries': [kw], 'zaman': None, 'haber': False, 'detay': True, 'guncel': bool(plan.get('guncel')), 'uzman': plan.get('uzman')}
             en = _translate_query_en(q)  # tembel: sadece bu tura gelinirse calisir
             if en:
-                yield {'queries': [en], 'zaman': None, 'haber': False, 'detay': True, 'guncel': bool(plan.get('guncel'))}
+                yield {'queries': [en], 'zaman': None, 'haber': False, 'detay': True, 'guncel': bool(plan.get('guncel')), 'uzman': plan.get('uzman')}
 
         for p in _variants():
             if time.time() - t0 > SEARCH_RETRY_DEADLINE:
@@ -3468,15 +3798,13 @@ def chat():
     raw_user_text = user_input  # siniflandirma icin: PDF metni eklenmeden ONCEKI orijinal mesaj
     chosen_model = data.get('model', None)
     file_data = data.get('file', None)
-    # Uzman modu ("Hukuk:", "Finans:" ... on eki): arama ile birbirine KARISMAZ (once mod, sonra arama ayristirilir).
+    # Uzman modu (arayuzdeki Uzman dugmesi): arama ile birbirine KARISMAZ (once mod, sonra arama ayristirilir).
     uzman_modu, soru_govdesi = resolve_uzman_modu(user_input, has_file=bool(file_data), secili=data.get('expert'))
     uzman_soru_yok = bool(uzman_modu) and bool(file_data) and not soru_govdesi.strip(''.join(_SORU_ISARETLERI) + ' \t\r\n')
-    # Mod mesajin basindaki yazili "Alan:" on ekinden mi geldi, yoksa arayuzdeki uzman butonundan mi? (modele giden nottaki ifade buna gore degisir)
-    uzman_yazili_on_ek = bool(uzman_modu) and parse_uzman_modu(user_input, has_file=bool(file_data))[0] is not None
     # Soru isareti (?) komutu: arama SADECE mesaj "?" ile bitiyorsa ve ISTISNASIZ yapilir.
-    # Mod varsa soru, alan adi cikarilmis govdeden okunur ("Finans: bugun altin alinir mi?" -> govde ? ile biter).
+    # Arama, moddan bagimsiz olarak YALNIZCA mesajin kendisine bakar ("bugun altin alinir mi?" -> sonda ? varsa arama).
     ara_komutu, ara_sorusu = parse_ara_komutu(soru_govdesi)
-    raw_user_text = ara_sorusu if ara_komutu else soru_govdesi  # arama ve siniflandirma icin on eksiz saf soru metni
+    raw_user_text = ara_sorusu if ara_komutu else soru_govdesi  # arama ve siniflandirma icin saf soru metni
     # KRITIK: hangi sohbete ait oldugunu sunucuya soyleyen kimlik. Frontend
     # bunu HER istekte gonderir (bkz. sendMsg). Bos/eksik gelirse (ör. eski bir
     # istemci surumu) sohbetleri birbirine karistirmamak icin sabit bir "default"
@@ -3521,7 +3849,7 @@ def chat():
         # sohbetin gecmisinde saklanmiyor (bkz. HAFIZA YONETIMI notlari).
         curr = [get_active_system_message()] + conv
 
-    def inject_time_into_last_message(msgs, extra_context=None, search_note=None, uzman=None):
+    def inject_time_into_last_message(msgs, extra_context=None, search_note=None, uzman=None, seviye=0):
         """Zaman bilgisini (ve varsa internet arama sonucunu) mesaj dizisinin BASINA
         degil, SADECE en son (yeni) mesaja ekler. Boylece sistem mesaji ve gecmis
         konusma her istekte birebir ayni prefix'i korur ve Groq'un otomatik prompt
@@ -3530,9 +3858,9 @@ def chat():
         msgs = [dict(mm) for mm in msgs]
         note = f'[Güncel tarih/saat (Türkiye, UTC+3; yalnızca iç bilgi, kullanıcı sormadıkça yanıtta belirtme): {_tr_now_str()}] '
         if uzman:
-            note += f'[{build_uzman_notu(uzman, uzman_soru_yok, uzman_yazili_on_ek)}] '
+            note += f'[{build_uzman_notu(uzman, uzman_soru_yok, seviye >= 1)}] '
         if extra_context:
-            note += (
+            _kurallar = (
                 '[İNTERNET ARAMA SONUÇLARI (Google + web; arama bugünün tarihinde yapıldı; sonuçlar soruya alakaya göre sıralıdır). KURALLAR: '
                 '0) Kullanıcının mesajı soru işaretiyle (?) bitiyorsa bu yalnızca arama tetikleyicisidir; sorunun kendisini bu sonuçlara dayanarak yanıtla. '
                 '1) İlk cümlede doğrudan cevabı ver; ardından yalnızca soruyu tamamlayan en önemli ayrıntıları ekle. Giriş cümlesi, soruyu tekrar etme ve dolgu yazma. '
@@ -3552,8 +3880,15 @@ def chat():
                 '7) KAYNAK BELİRTME KONUSUNDA KESİN KURAL: cevap metninin içine ASLA \"(Kaynak: ...)\" gibi satır içi '
                 'kaynak ekleme, ASLA kendi \"Kaynak;\" başlığı/linki oluşturma ve ASLA herhangi bir URL yazma - kaynak '
                 'linkleri cevabının sonuna SİSTEM TARAFINDAN OTOMATİK olarak eklenecek, bunu sen yapma, sadece soruyu '
-                f'normal şekilde yanıtla:\n{extra_context}\n] '
+                'normal şekilde yanıtla:\n'
             )
+            if seviye >= 3:
+                _kurallar = _ARAMA_KURALLARI_ULTRA
+            elif seviye >= 1:
+                _kurallar = _ARAMA_KURALLARI_KOMPAKT
+            if uzman:
+                _kurallar = _uzman_arama_kurallari(_kurallar)
+            note += _kurallar + f'{extra_context}\n] '
         elif search_note:
             note += f'[{search_note}] '
         last = dict(msgs[-1])
@@ -3605,6 +3940,9 @@ def chat():
             print(f'[arama] plan hatasi: {type(_e).__name__}: {_e}')
             arama_plani = _apply_fresh_rules(_default_plan(raw_user_text), raw_user_text)
             arama_late = None
+        _uzman_anahtar = next((k for k, v in UZMAN_MODLARI.items() if v is uzman_modu), None) if uzman_modu else None
+        if _uzman_anahtar and isinstance(arama_plani, dict):
+            arama_plani = dict(arama_plani, uzman=_uzman_anahtar)   # arama siralamasi uzman modundan haberdar olsun
         _t_arama = time.time()
         _sr = search_with_fallback(arama_plani, raw_user_text, arama_late)
         print(f'[arama] komut toplam sure (plan haric): {time.time() - _t_arama:.1f}s')
@@ -3649,12 +3987,101 @@ def chat():
         # Tam (ozetleme sistemi tarafindan zaten sinirlanan) gecmisi kullaniyoruz; kor "son 5 mesaj"
         # kesmesi yapmiyoruz cunku bu, her istekte pencereyi kaydirip prompt caching'i bozuyordu.
 
-        for m in chain:
+        # --- GROQ LIMIT YONETIMI (bkz. ilgili bolum): kisitli limitte (ucretsiz plan) istek her model icin once limite sigdirilir ---
+        kaynak_ref = [arama_kaynaklari]       # kullaniciya gosterilen kaynaklar, modele giden baglamla uyumlu tutulur
+        _kuyruk = list(chain)
+        _qi = 0
+        _ertelendi = set()                    # kapasitesi dolu oldugu icin sona atilan modeller
+        _429_bekle = {}                       # 429 yiyen ve kisa sure sonra yeniden denenecek modeller
+        _429_denendi = set()
+        _bekleme_kalan = [GROQ_BEKLEME_TOPLAM_MAX]
+        _limit_notu = {'bekleme': None, 'sigmiyor': False}
+        _413_sayac = {}
+
+        def _uygula_fit(pp, fc):
+            pp['messages'] = fc['msgs']
+            pp['max_completion_tokens'] = fc['out']
+            kaynak_ref[0] = fc['kaynak']
+            # Gizli dusunme tokenlari da cikti payindan harcanir: dar payda cevabin yarida kesilmemesi icin dusunme cabasi azaltilir.
+            if fc['seviye'] >= 2 and pp.get('reasoning_effort') in ('medium', 'high'):
+                pp['reasoning_effort'] = 'low'
+
+        def _plan_fit(mdl, base, desired_out, baslangic=0):
+            """Istegi bu modelin limitine sigdiran EN AZ sikistirmali seviyeyi secer (0: tam, 1 ila 3: giderek kisa)."""
+            lim = _rl_limit(mdl)
+            best = None
+            for sv in range(baslangic, 4):
+                ctx, kept = arama_sonucu, None
+                if arama_sonucu and sv >= 1:
+                    ctx, kept = _fit_context(arama_sonucu, _KONTEKST_SINIRLARI[sv])
+                msgs = inject_time_into_last_message(base, extra_context=ctx, search_note=arama_notu, uzman=uzman_modu, seviye=sv)
+                if sv >= 3:
+                    msgs = _history_trim(msgs, 4)
+                est_in = _rl_est(_msgs_chars(msgs))
+                room = lim - GROQ_GUVENLIK_PAYI - est_in
+                kaynak = arama_kaynaklari if kept is None else arama_kaynaklari[:kept]
+                cand = {'seviye': sv, 'msgs': msgs, 'est_in': est_in, 'out': max(0, min(desired_out, room)), 'kaynak': kaynak}
+                if best is None or cand['out'] > best['out']:
+                    best = cand
+                if room >= min(GROQ_CIKTI_HEDEF, desired_out):
+                    return cand
+            return best
+
+        while _qi < len(_kuyruk):
+            m = _kuyruk[_qi]
+            _qi += 1
+            if m in _429_bekle:
+                _kalan = _429_bekle.pop(m) - time.time()
+                if _kalan > 0:
+                    if _kalan <= _bekleme_kalan[0]:
+                        _bekleme_kalan[0] -= _kalan
+                        time.sleep(_kalan + 0.3)
+                    else:
+                        last_err = f'{m}: dakikalik token sinirina takildi'
+                        continue
             base_msgs = (curr[:1] + [GPT20B_FIX_MSG] + curr[1:]) if m == 'openai/gpt-oss-20b' else curr
-            req_messages = inject_time_into_last_message(base_msgs, extra_context=arama_sonucu, search_note=arama_notu, uzman=uzman_modu)
+            _gp = get_generation_params(m, sinif['gorev'], token_budget)
+            fit_ctx = None
+            if _rl_kisitli(m):
+                fit_ctx = _plan_fit(m, base_msgs, int(_gp.get('max_completion_tokens') or token_budget))
+                req_messages = fit_ctx['msgs']
+                kaynak_ref[0] = fit_ctx['kaynak']
+            else:
+                req_messages = inject_time_into_last_message(base_msgs, extra_context=arama_sonucu, search_note=arama_notu, uzman=uzman_modu)
+                kaynak_ref[0] = arama_kaynaklari
 
             p = {'model': m, 'messages': req_messages, 'stream': True}
-            p.update(get_generation_params(m, sinif['gorev'], token_budget))
+            p.update(_gp)
+
+            if fit_ctx:
+                _uygula_fit(p, fit_ctx)
+                if fit_ctx['out'] < GROQ_CIKTI_MIN:
+                    last_err = f'{m}: istek hesabin dakikalik token sinirina sigmiyor'
+                    _limit_notu['sigmiyor'] = True
+                    continue
+                _hedef = fit_ctx['est_in'] + min(fit_ctx['out'], GROQ_CIKTI_HEDEF)
+                _asgari = fit_ctx['est_in'] + GROQ_CIKTI_MIN
+                if _rl_available(m) < _hedef:
+                    if m not in _ertelendi and _qi < len(_kuyruk):
+                        _ertelendi.add(m)
+                        _kuyruk.append(m)      # bu modelin kovasi su an dolu: once digerleri (ayri kovalar), en sona bu
+                        continue
+                    _bekle = _rl_wait_for(m, _hedef)
+                    if _bekle > _bekleme_kalan[0] or _bekle > GROQ_BEKLEME_MAX:
+                        _bekle = _rl_wait_for(m, _asgari)
+                    if _bekle <= _bekleme_kalan[0] and _bekle <= GROQ_BEKLEME_MAX:
+                        if _bekle > 0:
+                            _bekleme_kalan[0] -= _bekle
+                            time.sleep(_bekle + 0.2)
+                    else:
+                        _sn = 0 if _bekle == float('inf') else int(_bekle)
+                        last_err = f'{m}: dakikalik token kapasitesi dolu (yaklasik {_sn} sn)'
+                        if _bekle != float('inf'):
+                            _limit_notu['bekleme'] = _bekle if _limit_notu['bekleme'] is None else min(_limit_notu['bekleme'], _bekle)
+                        continue
+                _musait = _rl_available(m)
+                p['max_completion_tokens'] = int(max(GROQ_CIKTI_MIN, min(fit_ctx['out'], _musait - fit_ctx['est_in'] - GROQ_GUVENLIK_PAYI)))
+                _rl_charge(m, fit_ctx['est_in'] + min(p['max_completion_tokens'], GROQ_CIKTI_HEDEF))
 
             # --- MODEL ONCELIKLI KEY ROTASYONU ---
             # Bu model icin su an musait olan (limiti dolmamis) key'leri sirayla dene.
@@ -3669,10 +4096,11 @@ def chat():
 
             for key in available_keys:
                 try:
-                    yield f"data: {json.dumps({'type': 'model', 'model': m, 'searched': bool(arama_sonucu), 'sources': arama_kaynaklari})}\n\n"
+                    yield f"data: {json.dumps({'type': 'model', 'model': m, 'searched': bool(arama_sonucu), 'sources': kaynak_ref[0]})}\n\n"
                     start_ts = time.time()
                     full_ai_response = ""
                     char_count = 0
+                    usage_seen = None
 
                     # Onemli: sabit tek bir sayi yerine ayri connect/read/write sureleri kullaniyoruz.
                     # Uzun ve detayli (tam kapasite) yanitlarda modelin iki chunk arasinda 45sn'den
@@ -3682,6 +4110,7 @@ def chat():
                     req_timeout = httpx.Timeout(connect=10.0, read=110.0, write=15.0, pool=15.0)
 
                     with _GROQ_CLIENT.stream('POST', URL, headers={'Authorization': f'Bearer {key}'}, json=p, timeout=req_timeout) as r:
+                        _rl_update(m, r.headers)
                         if r.status_code == 429:
                             cooldown = None
                             ra = r.headers.get('retry-after')
@@ -3694,6 +4123,12 @@ def chat():
                                 cooldown = parse_reset_string(r.headers.get('x-ratelimit-reset-requests')) or DEFAULT_COOLDOWN_SECONDS
                             mark_key_cooldown(key, m, cooldown)
                             last_err = f'{m}: bir anahtarin limiti doldu, digerine geciliyor ({cooldown:.0f}sn sonra tekrar denenecek)'
+                            _limit_notu['bekleme'] = cooldown if _limit_notu['bekleme'] is None else min(_limit_notu['bekleme'], cooldown)
+                            if fit_ctx and cooldown <= GROQ_BEKLEME_MAX and m not in _429_denendi:
+                                # Kisitli limitte dakikalik kota doldu: diger modelleri denedikten sonra kisa sure bekleyip bu modele bir kez daha don
+                                _429_denendi.add(m)
+                                _429_bekle[m] = time.time() + cooldown
+                                _kuyruk.append(m)
                             continue  # ayni modelde SIRADAKI key'i dene
 
                         if r.status_code != 200:
@@ -3710,6 +4145,20 @@ def chat():
                                 p['max_completion_tokens'] = token_budget_guvenli
                                 available_keys.append(key)
                                 continue
+                            if fit_ctx and _token_siniri_hatasi(r.status_code, err_body) and _413_sayac.get(m, 0) < 3:
+                                # Istek saglayici limitine sigmadi: GERCEK token sayisindan ogren, istegi yeniden planla (bir ust seviye
+                                # ya da daha dusuk cikti payi) ve ayni anahtari yeniden dene. En fazla 3 kez; degisiklik yoksa denenmez.
+                                _413_sayac[m] = _413_sayac.get(m, 0) + 1
+                                _rl_ogren_hata(m, err_body)
+                                _ogrendi = _rl_ogren_413(err_body, _msgs_chars(p['messages']), p.get('max_completion_tokens') or 0)
+                                if not _ogrendi:
+                                    _RL_CPT['v'] = max(2.0, _RL_CPT['v'] * 0.92)  # tahmin iyimser cikti: daha temkinli planla
+                                _yeni = _plan_fit(m, base_msgs, int(_gp.get('max_completion_tokens') or token_budget), 0 if _ogrendi else fit_ctx['seviye'] + 1)
+                                if _yeni and _yeni['out'] >= GROQ_CIKTI_MIN and (_yeni['seviye'] != fit_ctx['seviye'] or _yeni['out'] < (p.get('max_completion_tokens') or 0) - 50):
+                                    fit_ctx = _yeni
+                                    _uygula_fit(p, fit_ctx)
+                                    available_keys.append(key)
+                                    continue
                             last_err = f'HTTP {r.status_code}: {err_body}'
                             model_had_non_rate_limit_error = True
                             break  # bu key'in sorunu degil, modelin/isteklin sorunu -> siradaki modele gec
@@ -3722,6 +4171,9 @@ def chat():
                                 break
                             try:
                                 parsed_chunk = json.loads(chunk)
+                                _u = parsed_chunk.get('usage') or (parsed_chunk.get('x_groq') or {}).get('usage')
+                                if _u:
+                                    usage_seen = _u
                                 choice0 = parsed_chunk['choices'][0]
                                 d = choice0['delta'].get('content', '')
                                 if d:
@@ -3731,9 +4183,18 @@ def chat():
                             except:
                                 pass
 
+                    try:
+                        if fit_ctx:
+                            _cmp = int((usage_seen or {}).get('completion_tokens') or 0) or int(char_count / _RL_CPT['v'])
+                            _rl_charge(m, _cmp)
+                        if usage_seen:
+                            _rl_ogren_cpt(_msgs_chars(p['messages']), usage_seen.get('prompt_tokens'))
+                    except Exception:
+                        pass
+
                     # Kaynak linkleri modele birakilmiyor - sunucu SUNUCU TARAFINDA
                     # deterministik/eksiksiz olarak ekliyor (bkz. build_kaynak_markdown).
-                    kaynak_md = build_kaynak_markdown(arama_kaynaklari) if arama_sonucu else ''
+                    kaynak_md = build_kaynak_markdown(kaynak_ref[0]) if arama_sonucu else ''
                     if kaynak_md:
                         full_ai_response += kaynak_md
                         yield f"data: {json.dumps({'type': 'delta', 'text': kaynak_md})}\n\n"
@@ -3761,7 +4222,7 @@ def chat():
                     # Bunun yerine elimizdeki kismi cevabi kalici kabul edip duzgunce sonlandiriyoruz;
                     # boylece kullanici en azindan o ana kadar uretilen metni kaybetmiyor.
                     if full_ai_response:
-                        kaynak_md = build_kaynak_markdown(arama_kaynaklari) if arama_sonucu else ''
+                        kaynak_md = build_kaynak_markdown(kaynak_ref[0]) if arama_sonucu else ''
                         if kaynak_md:
                             full_ai_response += kaynak_md
                             yield f"data: {json.dumps({'type': 'delta', 'text': kaynak_md})}\n\n"
@@ -3782,7 +4243,14 @@ def chat():
             # -> dogal olarak siradaki modele geciliyor (for m in chain devam eder)
 
         if not succ:
-            yield f"data: {json.dumps({'type': 'error', 'text': 'Su an tum modeller/anahtarlar mesgul. Detay: ' + last_err})}\n\n"
+            _ek = ''
+            if _limit_notu.get('sigmiyor'):
+                _ek = ' İstek, hesabının dakikalık token sınırına sığmıyor; mesajı veya eki kısaltıp tekrar dene.'
+            elif _limit_notu.get('bekleme') is not None:
+                _sn = _limit_notu['bekleme']
+                _ek = (' Günlük token sınırı dolmuş olabilir; daha sonra tekrar dene.' if _sn > 600
+                       else f' Dakikalık token sınırı doldu; yaklaşık {int(_sn) + 1} saniye sonra tekrar dene.')
+            yield f"data: {json.dumps({'type': 'error', 'text': 'Su an tum modeller/anahtarlar mesgul.' + _ek + ' Detay: ' + last_err})}\n\n"
 
     job['status'] = 'running'
     threading.Thread(target=_job_worker, args=(job, gen), daemon=True).start()
