@@ -4566,7 +4566,7 @@ window.onerror = function(msg, url, line, col, error){
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,wght@0,500;0,600;0,700;0,800;1,500;1,600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" crossorigin="anonymous"></script>
 <style>
@@ -4690,8 +4690,6 @@ button, input, select, textarea { font-family: var(--font-ui); font-weight: inhe
 .welcome-container { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 18px; max-width: 480px; padding: 0 8px; width: 100%; }
 .pulse-orb { width: 48px; height: 48px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #50443a, #231d18 72%); border: 1px solid #BFA68A; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 1px rgba(191,166,138,0.15), 0 0 26px rgba(191,166,138,0.14); position: relative; animation: orb-glow 2.6s infinite ease-in-out; font-family: var(--font-ui); font-style: italic; font-weight: 600; font-size: 24px; color: #D3BC9F; line-height: 1; }
 @keyframes orb-glow { 0%,100%{ box-shadow: 0 0 0 1px rgba(191,166,138,0.15), 0 0 26px rgba(191,166,138,0.14);} 50%{ box-shadow: 0 0 0 1px rgba(191,166,138,0.22), 0 0 34px rgba(191,166,138,0.22);} }
-.welcome-title { font-family: var(--font-ui); font-size: 22px; font-weight: 600; line-height: 1.3; color: var(--ivory); letter-spacing: -0.01em; }
-.welcome-subtitle { font-family: var(--font-ui); font-size: 13.5px; font-weight: 500; line-height: 1.5; color: var(--stone-dim); margin-top: 2px; letter-spacing: 0.01em; }
 
 
 /* ============ MESSAGES ============ */
@@ -4867,7 +4865,6 @@ button, input, select, textarea { font-family: var(--font-ui); font-weight: inhe
   .sidebar-toggle { display: flex; }
   .header { padding: 0 14px; }
   .chat-area { padding: 70px 16px 16px; }
-  .welcome-title { font-size: 19px; }
   .input-area { padding: 8px 12px 14px; }
   .bubble.user-bubble { max-width: 86%; }
 
@@ -5010,8 +5007,6 @@ html, body { background: #2B2B29; }
 .header { background: rgba(43,43,41,0.80); }
 .sidebar-header .seal, .header-brand .seal { background: #D97757; border-color: transparent; color: #FAF9F5; box-shadow: none; }
 .pulse-orb { background: transparent; border: none; color: #D97757; box-shadow: none; }
-.welcome-title { font-family: var(--font-ui); font-weight: 500; color: #FAF9F5; text-shadow: none; }
-.welcome-subtitle { color: #9C9A92; }
 .bubble.user-bubble { background: #343432; border-color: transparent; color: #FAF9F5; }
 .bubble.ai-bubble { font-family: var(--font-ui); font-weight: 500; color: #FAF9F5; }
 .bubble.ai-bubble h1, .bubble.ai-bubble h2, .bubble.ai-bubble h3 { border-left-color: transparent; }
@@ -5053,50 +5048,10 @@ html, body { background: #2B2B29; }
 .bubble.ai-bubble h3 { font-size: 16px; }
 .bubble.ai-bubble h4 { font-size: 15px; }
 .bubble.user-bubble { font-family: var(--font-ui); font-size: 15.5px; line-height: 1.65; }
-.welcome-title { font-family: var(--font-ui); }
 
 /* Logo ve marka yazisi gizlendi (HTML/JS'e dokunulmadi) */
 .sidebar-header .seal, .sidebar-title, .header-brand, .pulse-orb { display: none; }
 
-/* Karsilama ekrani: saate gore degisen CANLI ikon (sabah/ogle/aksam/gece) */
-.welcome-icon { width: 92px; height: 92px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; animation: welcome-icon-in .8s ease both; }
-.welcome-icon svg { width: 100%; height: 100%; display: block; overflow: visible; }
-@keyframes welcome-icon-in { from { opacity: 0; transform: translateY(8px) scale(.9); } to { opacity: 1; transform: none; } }
-.welcome-icon .wi-glow { transform-box: fill-box; transform-origin: center; animation: wi-glow 4.5s ease-in-out infinite; }
-.welcome-icon .wi-spin { transform-box: view-box; animation: wi-spin 50s linear infinite; }
-.welcome-icon .wi-ray { animation: wi-ray 3s ease-in-out infinite alternate; }
-.welcome-icon .wi-rise { animation: wi-rise 8s ease-in-out infinite alternate; }
-.welcome-icon .wi-sink { animation: wi-sink 9s ease-in-out infinite alternate; }
-.welcome-icon .wi-shimmer { animation: wi-shimmer 3s ease-in-out infinite alternate; }
-.welcome-icon .wi-cloud { animation: wi-drift 11s ease-in-out infinite alternate; }
-.welcome-icon .wi-cloud-b { animation-duration: 15s; animation-direction: alternate-reverse; }
-.welcome-icon .wi-twinkle { transform-box: fill-box; transform-origin: center; animation: wi-twinkle 3s ease-in-out infinite; }
-.welcome-icon .wi-float { animation: wi-float 7s ease-in-out infinite alternate; }
-.welcome-icon .wi-shoot { opacity: 0; animation: wi-shoot 9s ease-in 2s infinite; }
-@keyframes wi-glow { 0%, 100% { opacity: .6; transform: scale(.93); } 50% { opacity: 1; transform: scale(1.08); } }
-@keyframes wi-spin { to { transform: rotate(360deg); } }
-@keyframes wi-ray { from { opacity: .4; } to { opacity: 1; } }
-@keyframes wi-rise { from { transform: translateY(16px); } to { transform: translateY(-4px); } }
-@keyframes wi-sink { from { transform: translateY(-6px); } to { transform: translateY(17px); } }
-@keyframes wi-shimmer { from { opacity: .15; } to { opacity: .65; } }
-@keyframes wi-drift { from { transform: translateX(-9px); } to { transform: translateX(9px); } }
-@keyframes wi-twinkle { 0%, 100% { opacity: .2; transform: scale(.55); } 50% { opacity: 1; transform: scale(1.15); } }
-@keyframes wi-float { from { transform: translateY(-3px); } to { transform: translateY(3px); } }
-@keyframes wi-shoot { 0% { opacity: 0; transform: translate(0, 0); } 4% { opacity: 1; } 14% { opacity: 0; transform: translate(34px, 20px); } 100% { opacity: 0; transform: translate(34px, 20px); } }
-/* Hava durumuna gore ikonlar */
-.welcome-icon .wi-drop { animation: wi-fall 1.5s linear infinite; }
-.welcome-icon .wi-drop-s { animation-duration: 2.4s; }
-.welcome-icon .wi-drop-f { animation-duration: 1s; }
-.welcome-icon .wi-flake { animation: wi-snow 4.2s ease-in-out infinite; }
-.welcome-icon .wi-flash { animation: wi-flash 3.6s linear infinite; }
-.welcome-icon .wi-mist { animation: wi-mist 7s ease-in-out infinite alternate; }
-.welcome-icon .wi-mist-b { animation-duration: 9s; animation-direction: alternate-reverse; }
-.welcome-icon .wi-bob { animation: wi-bob 5s ease-in-out infinite alternate; }
-@keyframes wi-fall { 0% { transform: translateY(-4px); opacity: 0; } 15% { opacity: 1; } 80% { opacity: 1; } 100% { transform: translateY(26px); opacity: 0; } }
-@keyframes wi-snow { 0% { transform: translate(-3px, -4px); opacity: 0; } 15% { opacity: 1; } 50% { transform: translate(3px, 10px); } 85% { opacity: 1; } 100% { transform: translate(-2px, 26px); opacity: 0; } }
-@keyframes wi-flash { 0%, 48%, 100% { opacity: .2; } 52% { opacity: 1; } 56% { opacity: .3; } 60% { opacity: 1; } 78% { opacity: .85; } 90% { opacity: .3; } }
-@keyframes wi-mist { from { transform: translateX(-8px); opacity: .55; } to { transform: translateX(8px); opacity: 1; } }
-@keyframes wi-bob { from { transform: translateY(-2px); } to { transform: translateY(2px); } }
 .sidebar-header { padding: 16px 18px 0; border-bottom: none; }
 
 /* Mikrofon (sesle yaz) butonu: artı butonuyla ayni boyut ve renk */
@@ -5109,6 +5064,61 @@ html, body { background: #2B2B29; }
 .input-wrapper.voice-on .mic-btn { opacity: .4; pointer-events: none; }
 @media (hover: hover) { .mic-btn:hover { background: #4C4C48; } .mic-btn.is-listening:hover { background: #C6613F; } }
 @media (max-width: 370px) { .mic-btn { width: 30px; height: 30px; } }
+/* ============ CLAUDE TEMASI 2: birebir Claude renkleri, buyuk ve kalin yazi ============ */
+:root {
+  --obsidian: #262624; --obsidian-2: #1F1E1D; --obsidian-3: #30302E;
+  --hairline: #3E3E3B; --hairline-soft: #30302E;
+  --ivory: #FAF9F5; --stone: #C2C0B6; --stone-dim: #9C9A92;
+  --code-bg: #1F1E1D;
+}
+html, body { background: #262624; }
+.main-content, .chat-area, .input-area { background: #262624; }
+.sidebar { background: #1F1E1D; border-right-color: #30302E; }
+.header { background: rgba(38,38,36,0.85); }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .header { background: #262624; } }
+
+/* Kullanici mesaj kutusu */
+.bubble.user-bubble { background: #141413; border: 1px solid rgba(222,220,209,0.08); border-radius: 18px; color: #FAF9F5; padding: 12px 16px; }
+
+/* Yazi kutusu (giris alani) */
+.input-wrapper { --ta-lh: 26px; --mb-bg: #30302E; --mb-border: rgba(222,220,209,0.14); --mb-menu-bg: #30302E; --mb-muted: #9C9A92; --mb-text: #FAF9F5; }
+.input-wrapper { background: #30302E; border: 1px solid rgba(222,220,209,0.14); border-radius: 28px; padding: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.25); }
+.input-wrapper:focus-within { border-color: rgba(222,220,209,0.28); }
+.input-wrapper.voice-listening { border-color: #D97757; }
+.input-wrapper textarea { font-size: 17px; font-weight: 600; color: #FAF9F5; caret-color: #D97757; }
+.input-wrapper textarea::placeholder { font-weight: 600; color: #9C9A92; }
+.act-btn, .model-pill, .mic-btn { background: #3A3A38; }
+.hdr-menu, .mb-menu { background: #30302E; border-color: rgba(222,220,209,0.14); }
+.settings-box, .confirm-box, .rename-box, .chat-menu-sheet { background: #262624; }
+
+/* Yazi tipi: buyuk ve kalin */
+.bubble.ai-bubble { font-size: 17px; font-weight: 600; line-height: 1.6; color: #FAF9F5; }
+.bubble.user-bubble { font-size: 17px; font-weight: 600; line-height: 1.6; }
+.bubble.ai-bubble h1, .bubble.ai-bubble h2, .bubble.ai-bubble h3, .bubble.ai-bubble h4 { font-weight: 800; }
+.bubble.ai-bubble h1 { font-size: 21px; }
+.bubble.ai-bubble h2 { font-size: 20px; }
+.bubble.ai-bubble h3 { font-size: 18.5px; }
+.bubble.ai-bubble h4 { font-size: 17px; }
+.bubble.ai-bubble strong { font-weight: 800; }
+.bubble.ai-bubble code { font-size: 14px; }
+/* Cevap metni: Claude'un serif yazi tipine en yakin font, buyuk ve kalin */
+:root { --font-serif: 'Source Serif 4', 'Iowan Old Style', Georgia, 'Times New Roman', serif; }
+.bubble.ai-bubble { font-family: var(--font-serif); font-size: 18px; font-weight: 600; line-height: 1.6; }
+.bubble.ai-bubble h1, .bubble.ai-bubble h2, .bubble.ai-bubble h3, .bubble.ai-bubble h4 { font-family: var(--font-serif); font-weight: 800; }
+.bubble.ai-bubble h1 { font-size: 22px; }
+.bubble.ai-bubble h2 { font-size: 21px; }
+.bubble.ai-bubble h3 { font-size: 19.5px; }
+.bubble.ai-bubble h4 { font-size: 18px; }
+.bubble.ai-bubble code { font-family: 'IBM Plex Mono', monospace; font-size: 14px; }
+/* Ust bar ikonlari: Claude uygulamasi gibi ince cizgili, sade, 24 px */
+.header .sidebar-toggle, .header .icon-btn { width: 40px; height: 40px; color: #E8E6DC; }
+.header .sidebar-toggle svg, .header .icon-btn svg { width: 24px; height: 24px; }
+.header .sidebar-toggle svg, .header #hdrHomeBtn svg { stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.header #hdrMoreBtn svg circle { stroke: none; }
+.header .header-actions { gap: 2px; }
+.header .sidebar-toggle:active, .header .icon-btn:active { background: rgba(250,249,245,0.10); color: #FAF9F5; }
+@media (hover: hover) { .header .icon-btn:hover, .header .sidebar-toggle:hover { background: rgba(250,249,245,0.08); color: #FAF9F5; } }
+/* ============ /CLAUDE TEMASI 2 ============ */
 /* ============ /CLAUDE TEMASI ============ */
 </style>
 </head>
@@ -5125,12 +5135,12 @@ html, body { background: #2B2B29; }
   <div class="main-content">
     <header class="header">
       <div class="header-left">
-        <button class="sidebar-toggle" onclick="toggleSidebar()" id="sidebarToggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg></button>
+        <button class="sidebar-toggle" onclick="toggleSidebar()" id="sidebarToggle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8h16M4 16h11"/></svg></button>
       </div>
       <div class="header-actions">
-        <button class="icon-btn" id="hdrHomeBtn" type="button" onclick="goHome()" title="Yeni sohbet" aria-label="Yeni sohbet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/><path d="M12 8.5v6M9 11.5h6"/></svg></button>
+        <button class="icon-btn" id="hdrHomeBtn" type="button" onclick="goHome()" title="Yeni sohbet" aria-label="Yeni sohbet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg></button>
         <div class="hdr-menu-wrap">
-          <button class="icon-btn" id="hdrMoreBtn" type="button" onclick="toggleHdrMenu(event)" title="Daha fazla" aria-label="Daha fazla" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg></button>
+          <button class="icon-btn" id="hdrMoreBtn" type="button" onclick="toggleHdrMenu(event)" title="Daha fazla" aria-label="Daha fazla" aria-haspopup="true" aria-expanded="false"><svg viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><circle cx="12" cy="5.5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="18.5" r="1.5"/></svg></button>
           <div class="hdr-menu" id="hdrMenu" role="menu">
             <div id="hdrChatSection">
             <div class="hdr-menu-title" id="hdrMenuTitle">Sohbet</div>
@@ -5150,8 +5160,6 @@ html, body { background: #2B2B29; }
     <div class="chat-area is-empty" id="chatArea">
       <div class="welcome-container" id="welcomeContainer">
         <div class="pulse-orb">E</div>
-        <div class="welcome-title">İyi günler, Emre.</div>
-        <div class="welcome-subtitle" style="min-height:1.5em"></div>
       </div>
     </div>
     <div class="input-area">
@@ -6080,658 +6088,6 @@ function renderSidebar() {
   });
 }
 
-// ============================================
-// DİNAMİK KARŞILAMA BAŞLIĞI (saat bazlı selamlama + rastgele profesyonel alt metin)
-// ============================================
-const WELCOME_USER_NAME = 'Emre';
-function getWelcomeTimeBlock() {
-  const h = new Date().getHours();
-  if (h >= 5 && h < 12) return 'morning';
-  if (h >= 12 && h < 18) return 'afternoon';
-  if (h >= 18 && h < 22) return 'evening';
-  return 'night';
-}
-function getWelcomeGreeting() {
-  const block = getWelcomeTimeBlock();
-  if (block === 'morning') return 'Günaydın';
-  if (block === 'afternoon') return 'İyi Günler';
-  if (block === 'evening') return 'İyi Akşamlar';
-  return 'İyi Geceler';
-}
-function getWelcomeTitle() {
-  return `${getWelcomeGreeting()} ${WELCOME_USER_NAME}`;
-}
-function getWelcomeSubtitle() {
-  return pickWelcomeSubtitle().text;
-}
-
-// ---- Hava durumuna gore karsilama cumleleri ----
-var WELCOME_WX = null;                       // ust bar hava verisi (renderWx doldurur)
-var WX_MAX_AGE_MS = 30 * 60 * 1000;          // 30 dakikadan eski veriden cumle uretilmez
-var WX_LOOKAHEAD_MS = 16 * 3600 * 1000;      // yaklasan degisim icin bakilan sure
-var WX_PRECIP = { drizzle: 1, rain: 1, shower: 1, sleet: 1, snow: 1, thunder: 1 };
-var WX_PRECIP_NAME = {
-  drizzle: 'çisenti',
-  rain: 'yağmur',
-  shower: 'sağanak yağış',
-  sleet: 'karla karışık yağmur',
-  snow: 'kar yağışı',
-  thunder: 'gök gürültülü fırtına'
-};
-var WX_RANK = { none: 0, cached: 1, live: 2 };
-
-function wxPick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-function wxEsc(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-function wxCap(s) {
-  s = String(s || '');
-  return s.charAt(0).toLocaleUpperCase('tr-TR') + s.slice(1);
-}
-
-// WMO hava kodunu sade bir kategoriye cevirir.
-function wxCategory(code) {
-  if (code === null || code === undefined) return null;
-  code = Number(code);
-  if (!isFinite(code)) return null;
-  if (code === 0 || code === 1) return 'clear';
-  if (code === 2) return 'partly';
-  if (code === 3) return 'cloudy';
-  if (code === 45 || code === 48) return 'fog';
-  if (code >= 51 && code <= 55) return 'drizzle';
-  if (code === 56 || code === 57 || code === 66 || code === 67) return 'sleet';
-  if (code === 61 || code === 63) return 'rain';
-  if (code === 65 || (code >= 80 && code <= 82)) return 'shower';
-  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return 'snow';
-  if (code >= 95 && code <= 99) return 'thunder';
-  return null;
-}
-
-// Gecerli (taze) hava verisi ya da null.
-function wxFreshData() {
-  var d = WELCOME_WX;
-  if (!d || !d.wx || typeof d.wx.t !== 'number') return null;
-  if (!d._at || (Date.now() - d._at) > WX_MAX_AGE_MS) return null;
-  return d;
-}
-function getWelcomeWxState() {
-  var d = wxFreshData();
-  if (!d) return 'none';
-  return d._cached ? 'cached' : 'live';
-}
-
-// "Orhangazi" -> "Orhangazi'de", "Bursa" -> "Bursa'da", "Kars" -> "Kars'ta"
-function trLocative(name) {
-  name = String(name || '').trim();
-  if (!name) return '';
-  var lower = name.toLocaleLowerCase('tr-TR');
-  var back = 'aıou', front = 'eiöü', vowel = '', i;
-  for (i = lower.length - 1; i >= 0; i--) {
-    if ((back + front).indexOf(lower.charAt(i)) !== -1) { vowel = lower.charAt(i); break; }
-  }
-  if (!vowel) return '';
-  var a = back.indexOf(vowel) !== -1 ? 'a' : 'e';
-  var hard = 'çfhkpsşt'.indexOf(lower.charAt(lower.length - 1)) !== -1;
-  return name + "'" + (hard ? 't' : 'd') + a;
-}
-
-// Cumle icinde tire isareti kullanmamak icin eksi sicakliklar "eksi 2°C" diye yazilir.
-function wxTempText(t) {
-  var r = Math.round(t);
-  if (r === 0) r = 0;
-  return r < 0 ? 'eksi ' + Math.abs(r) + '°C' : r + '°C';
-}
-
-// Anlik durum cumleleri (her kategori icin birkac farkli cumle)
-function buildWxCurrent(d) {
-  var w = d.wx;
-  var cat = wxCategory(w.code);
-  if (!cat) return [];
-  var n = WELCOME_USER_NAME;
-  var t = wxTempText(w.t);
-  var f = '';
-  if (typeof w.feels === 'number' && Math.abs(Math.round(w.feels) - Math.round(w.t)) >= 3) {
-    f = ', hissedilen ' + wxTempText(w.feels);
-  }
-  var tf = t + f;
-  var loc = trLocative(d._wxPlace);
-  var wh = loc ? loc + ' ' : '';
-  var day = w.day !== false;
-
-  switch (cat) {
-    case 'clear':
-      if (day) {
-        return [
-          n + ', ' + wh + 'şu an hava güneşli, ' + tf + '. Güneşin tadını çıkar.',
-          wh + 'gökyüzü açık ve güneşli, ' + t + '. Dışarı çıkmak için güzel bir an.',
-          'Güneş açık, ' + t + '. Güneş gözlüğün işine yarar.',
-          n + ', hava şu an güneşli, ' + tf + '. Güzel bir gün seni bekliyor.'
-        ];
-      }
-      return [
-        n + ', ' + wh + 'şu an gökyüzü açık, ' + tf + '.',
-        wh + 'hava açık ve sakin, ' + t + '. Huzurlu bir saat.',
-        'Gökyüzü açık, ' + t + '. Yıldızları görmek için iyi bir zaman olabilir.'
-      ];
-    case 'partly':
-      return [
-        n + ', ' + wh + 'şu an hava parçalı bulutlu, ' + tf + '.',
-        'Gökyüzünde dağınık bulutlar var, ' + t + '. Hava dengeli görünüyor.',
-        wh + 'hava az bulutlu, ' + t + '. Dışarısı keyifli görünüyor.'
-      ];
-    case 'cloudy':
-      return [
-        n + ', ' + wh + 'şu an hava kapalı, ' + tf + '.',
-        'Gökyüzü bulutlarla kaplı, ' + t + '. Sakin ve gri bir hava.',
-        wh + 'hava bulutlu, ' + t + '. Bir fincan kahve iyi gider.'
-      ];
-    case 'fog':
-      return [
-        n + ', ' + wh + 'şu an hava sisli, ' + tf + '. Yolda görüş mesafesine dikkat.',
-        'Sis var, ' + t + '. Sürüş yapacaksan temkinli ol.',
-        'Dışarısı sisli, ' + t + '. Araç kullanırken farları açmayı unutma.'
-      ];
-    case 'drizzle':
-      return [
-        n + ', ' + wh + 'şu an çiseliyor, ' + tf + '. Yanına bir şemsiye al.',
-        'İnce bir çisenti var, ' + t + '. Hafif bir yağmurluk işini görür.',
-        wh + 'hafif çisenti var, ' + t + '. Şemsiye bulundurmakta fayda var.'
-      ];
-    case 'rain':
-      return [
-        n + ', ' + wh + 'şu an yağmur yağıyor, ' + tf + '. Şemsiyeni unutma.',
-        'Hava yağmurlu, ' + t + '. Çıkarken şemsiye almayı unutma.',
-        'Dışarıda yağmur var, ' + t + '. Yollar kayganlaşmış olabilir, dikkatli ol.',
-        wh + 'yağmur yağıyor, ' + t + '. Sıcak bir çay tam zamanı.'
-      ];
-    case 'shower':
-      return [
-        n + ', ' + wh + 'şu an sağanak yağış var, ' + tf + '. Mümkünse biraz bekle.',
-        'Sağanak yağmur yağıyor, ' + t + '. Şemsiye yetmeyebilir, yağmurluk daha iyi.',
-        wh + 'hava sağanak yağışlı, ' + t + '. Yola çıkacaksan dikkatli ol.'
-      ];
-    case 'snow':
-      return [
-        n + ', ' + wh + 'şu an kar yağıyor, ' + tf + '. Sıcak giyin.',
-        'Kar yağışı var, ' + t + '. Yollar kaygan olabilir, dikkatli ol.',
-        'Dışarıda kar yağıyor, ' + t + '. Eldivenini ve atkını unutma.',
-        wh + 'kar yağıyor, ' + t + '. Manzara güzel, ama dışarı çıkarken ayağına dikkat.'
-      ];
-    case 'sleet':
-      return [
-        n + ', ' + wh + 'şu an karla karışık yağmur yağıyor, ' + tf + '. Şemsiye ve sıcak bir mont iyi olur.',
-        'Karla karışık yağmur var, ' + t + '. Yollar buzlanabilir, dikkatli ol.',
-        wh + 'hava karla karışık yağmurlu, ' + t + '. Su geçirmez ayakkabı giymek akıllıca olur.'
-      ];
-    case 'thunder':
-      return [
-        n + ', ' + wh + 'şu an gök gürültülü fırtına var, ' + tf + '. Mümkünse içeride kal.',
-        'Hava fırtınalı, gök gürlüyor, ' + t + '. Açık alanlardan ve ağaç altından uzak dur.',
-        wh + 'gök gürültülü yağış var, ' + t + '. Yola çıkmadan önce biraz bekle.'
-      ];
-  }
-  return [];
-}
-
-function wxDayKey(dt) { return dt.getFullYear() * 10000 + dt.getMonth() * 100 + dt.getDate(); }
-
-// "Akşama doğru", "Gece", "Yarın sabah" gibi zaman ifadesi
-function wxWhenText(ms, now, nowD) {
-  if (ms - now <= 90 * 60 * 1000) return 'Kısa süre içinde';
-  var dt = new Date(ms);
-  var h = dt.getHours();
-  if (h >= 22 || h < 5) return 'Gece';
-  var part = h < 12 ? 'sabah' : (h < 18 ? 'öğleden sonra' : 'akşam');
-  if (wxDayKey(dt) !== wxDayKey(nowD)) return 'Yarın ' + part;
-  if (part === 'sabah') return 'Sabah saatlerinde';
-  if (part === 'akşam') return 'Akşama doğru';
-  return 'Öğleden sonra';
-}
-
-// Oncelik katmanlari: 1 kritik uyari, 2 yaklasan yagis, 3 anlik durum, 4 diger bilgiler.
-var WX_P_CRIT = 1, WX_P_UPCOMING = 2, WX_P_CURRENT = 3, WX_P_OTHER = 4;
-function wxItem(p, s) { return { p: p, s: s }; }
-
-// Yaklasan degisim uyarilari (saatlik tahminden)
-function buildWxAlerts(d) {
-  var out = [];
-  var w = d.wx;
-  var nowD = new Date();
-  var now = nowD.getTime();
-  var src = Array.isArray(w.hourly) ? w.hourly : [];
-  var list = [];
-  var i, k;
-  for (i = 0; i < src.length; i++) {
-    if (src[i] && typeof src[i].ts === 'number') list.push(src[i]);
-  }
-  list.sort(function (a, b) { return a.ts - b.ts; });
-
-  // 1) Yagis baslangici ya da bitisi (onumuzdeki 16 saat)
-  var fut = list.filter(function (e) {
-    var ms = e.ts * 1000;
-    return ms > now && ms <= now + WX_LOOKAHEAD_MS;
-  });
-  var curCat = wxCategory(w.code);
-  var raining = !!(curCat && WX_PRECIP[curCat]);
-  if (!raining) {
-    for (k = 0; k < fut.length; k++) {
-      var c = wxCategory(fut[k].code);
-      if (c && WX_PRECIP[c] && (typeof fut[k].pp !== 'number' || fut[k].pp >= 40)) {
-        out.push(wxItem(c === 'thunder' ? WX_P_CRIT : WX_P_UPCOMING, wxWhenText(fut[k].ts * 1000, now, nowD) + ' ' + WX_PRECIP_NAME[c] + ' bekleniyor.'));
-        break;
-      }
-    }
-  } else {
-    for (k = 0; k + 1 < fut.length; k++) {
-      var c1 = wxCategory(fut[k].code), c2 = wxCategory(fut[k + 1].code);
-      if (c1 && c2 && !WX_PRECIP[c1] && !WX_PRECIP[c2]) {
-        out.push(wxItem(WX_P_UPCOMING, wxWhenText(fut[k].ts * 1000, now, nowD) + ' yağışın dinmesi bekleniyor.'));
-        break;
-      }
-    }
-  }
-
-  // 2) Yarin ile bugun arasindaki sicaklik farki (en az 5 derece)
-  var tmD = new Date(nowD.getFullYear(), nowD.getMonth(), nowD.getDate() + 1);
-  var todayKey = wxDayKey(nowD), tomKey = wxDayKey(tmD);
-  var days = {};
-  for (i = 0; i < list.length; i++) {
-    var e = list[i];
-    if (typeof e.t !== 'number') continue;
-    var dt = new Date(e.ts * 1000);
-    var key = wxDayKey(dt), h = dt.getHours();
-    var b = days[key];
-    if (!b) { b = { max: e.t, mid: false }; days[key] = b; }
-    if (e.t > b.max) b.max = e.t;
-    if (h >= 12 && h <= 16) b.mid = true;
-  }
-  var bt = days[todayKey], bm = days[tomKey];
-  if (bt && bm && bt.mid && bm.mid) {
-    var diff = Math.round(bm.max) - Math.round(bt.max);
-    var ad = Math.abs(diff);
-    if (diff <= -5) {
-      out.push(wxItem(WX_P_OTHER, wxPick([
-        'Yarın bugünden ' + ad + ' derece soğuk.',
-        'Yarın hava bugüne göre ' + ad + ' derece daha soğuk olacak, hazırlıklı ol.'
-      ])));
-    } else if (diff >= 5) {
-      out.push(wxItem(WX_P_OTHER, wxPick([
-        'Yarın bugünden ' + ad + ' derece sıcak.',
-        'Yarın hava bugüne göre ' + ad + ' derece daha sıcak olacak.'
-      ])));
-    }
-  }
-  return out;
-}
-
-// ---- Hissedilen sicaklik, ruzgar, don, asiri sicak, UV ----
-function wxCurUV(w, now) {
-  var h = Array.isArray(w.hourly) ? w.hourly : [];
-  var best = null, bd = 90 * 60 * 1000, i, e, dd;
-  for (i = 0; i < h.length; i++) {
-    e = h[i];
-    if (!e || typeof e.ts !== 'number' || typeof e.uv !== 'number') continue;
-    dd = Math.abs(e.ts * 1000 - now);
-    if (dd <= bd) { bd = dd; best = e.uv; }
-  }
-  return best;
-}
-
-function buildWxConditions(d) {
-  var w = d.wx, out = [], i, e;
-  var nowD = new Date();
-  var now = nowD.getTime();
-  var t = w.t;
-  var hasFeels = typeof w.feels === 'number';
-  var eff = hasFeels ? w.feels : t;
-  var ld = (hasFeels ? 'hissedilen ' : 'sıcaklık ') + wxTempText(eff);
-
-  // Soguk (hissedilen sicakliga gore)
-  if (eff <= -10) {
-    out.push(wxItem(WX_P_CRIT, ld + ', çok sert bir soğuk. Dışarı çıkacaksan kat kat ve kalın giyin.'));
-    out.push(wxItem(WX_P_CRIT, ld + ', dondurucu soğuk. Eldiven, atkı ve bere şart.'));
-  } else if (eff <= 0) {
-    out.push(wxItem(WX_P_OTHER, ld + ', kalın giyin. Eldiven ve atkı iyi olur.'));
-    out.push(wxItem(WX_P_OTHER, ld + ', hava çok soğuk. Kalın bir mont şart.'));
-  } else if (eff <= 10) {
-    out.push(wxItem(WX_P_OTHER, ld + ', kalın giyin.'));
-    out.push(wxItem(WX_P_OTHER, ld + ', hava serin. Üstüne kalın bir şey al.'));
-  }
-
-  // Asiri sicak
-  if (eff >= 35) {
-    out.push(wxItem(WX_P_CRIT, 'aşırı sıcak, ' + ld + '. Bol su iç, öğle saatlerinde gölgede kal.'));
-    out.push(wxItem(WX_P_CRIT, 'hava aşırı sıcak, ' + ld + '. Mümkünse öğle sıcağında dışarı çıkma.'));
-  } else if (eff >= 30) {
-    out.push(wxItem(WX_P_OTHER, 'hava çok sıcak, ' + ld + '. Bol su iç ve gölgede dinlen.'));
-  }
-
-  // Ruzgar
-  if (typeof w.wind === 'number') {
-    var wk = Math.round(w.wind);
-    if (wk >= 60) {
-      out.push(wxItem(WX_P_CRIT, 'rüzgâr çok şiddetli, saatte yaklaşık ' + wk + ' km. Mümkünse dışarı çıkma.'));
-      out.push(wxItem(WX_P_CRIT, 'şiddetli rüzgâr var, saatte yaklaşık ' + wk + ' km. Hafif eşyaları içeri al.'));
-    } else if (wk >= 40) {
-      out.push(wxItem(WX_P_OTHER, 'rüzgâr sert, dışarı çıkacaksan dikkat.'));
-      out.push(wxItem(WX_P_OTHER, 'rüzgâr sert esiyor, saatte yaklaşık ' + wk + ' km. Balkondaki hafif eşyalara dikkat.'));
-      out.push(wxItem(WX_P_OTHER, 'sert rüzgâr var, çıkarken üstüne rüzgâr geçirmeyen bir şey al.'));
-    }
-  }
-
-  // Don riski (su an ve onumuzdeki 12 saat)
-  var list = Array.isArray(w.hourly) ? w.hourly : [];
-  var minT = t, minTs = now;
-  for (i = 0; i < list.length; i++) {
-    e = list[i];
-    if (!e || typeof e.ts !== 'number' || typeof e.t !== 'number') continue;
-    var ms = e.ts * 1000;
-    if (ms > now && ms <= now + 12 * 3600 * 1000 && e.t < minT) { minT = e.t; minTs = ms; }
-  }
-  if (t <= 0) {
-    out.push(wxItem(WX_P_CRIT, 'hava şu an donma noktasında, yollar ve zemin buzlanabilir.'));
-    out.push(wxItem(WX_P_CRIT, 'sıcaklık sıfırın altında, buzlanmaya dikkat. Araç kullanacaksan temkinli ol.'));
-  } else if (minT <= 0) {
-    out.push(wxItem(WX_P_CRIT, wxWhenText(minTs, now, nowD) + ' don bekleniyor, sıcaklık ' + wxTempText(minT) + ' civarına düşecek.'));
-  } else if (minT <= 3) {
-    if (minTs === now) {
-      out.push(wxItem(WX_P_OTHER, 'şu an don riski var, sıcaklık ' + wxTempText(minT) + '. Yollar ve zemin kaygan olabilir.'));
-    } else {
-      out.push(wxItem(WX_P_OTHER, wxWhenText(minTs, now, nowD) + ' don riski var, sıcaklık ' + wxTempText(minT) + ' civarına düşecek.'));
-    }
-  }
-
-  // Yuksek UV (sadece gunduz)
-  var uv = wxCurUV(w, now);
-  if (uv !== null && w.day !== false) {
-    var u = Math.round(uv);
-    if (uv >= 11) {
-      out.push(wxItem(WX_P_CRIT, 'UV indeksi ' + u + ', aşırı yüksek. Öğle saatlerinde güneşten uzak dur, güneş kremi şart.'));
-    } else if (uv >= 8) {
-      out.push(wxItem(WX_P_OTHER, 'UV indeksi ' + u + ', çok yüksek. Güneş kremi sür, öğle saatlerinde gölgede kal.'));
-    } else if (uv >= 6) {
-      out.push(wxItem(WX_P_OTHER, 'UV indeksi ' + u + ', yüksek. Güneş kremi ve güneş gözlüğü iyi olur.'));
-      out.push(wxItem(WX_P_OTHER, 'UV yüksek (' + u + '). Uzun süre güneşte kalacaksan güneş kremi sür.'));
-    }
-  }
-  return out;
-}
-
-// ---- Gun dogumu ve batimi ----
-var WX_UNIT_SFX = ['da', 'de', 'de', 'te', 'te', 'te', 'da', 'de', 'de', 'da'];
-var WX_TENS_SFX = ['', 'da', 'de', 'da', 'ta', 'de'];
-// Sayinin okunusundaki son kelimeye gore bulunma eki (21 "bir" -> de, 40 "kırk" -> ta)
-function wxNumSfx(n) {
-  var u = n % 10;
-  if (u !== 0 || n === 0) return WX_UNIT_SFX[u];
-  return WX_TENS_SFX[n / 10];
-}
-function wxHM(ms) {
-  var dt = new Date(ms);
-  var h = dt.getHours(), m = dt.getMinutes();
-  return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m;
-}
-// "18:21'de", "18:00'de", "06:40'ta"
-function wxTimeLoc(ms) {
-  var dt = new Date(ms);
-  var h = dt.getHours(), m = dt.getMinutes();
-  return wxHM(ms) + "'" + wxNumSfx(m === 0 ? h : m);
-}
-function wxDurText(mins) {
-  if (mins <= 5) return 'birkaç dakika';
-  var r = Math.round(mins / 5) * 5;
-  if (r < 60) return 'yaklaşık ' + r + ' dakika';
-  var h = Math.floor(r / 60), rem = r % 60;
-  return 'yaklaşık ' + h + ' saat' + (rem ? ' ' + rem + ' dakika' : '');
-}
-
-function buildWxSun(d) {
-  var sun = d.wx.sun;
-  if (!sun) return [];
-  var now = Date.now();
-  var MIN = 60 * 1000;
-  function toMs(arr) {
-    var o = [], i;
-    if (!Array.isArray(arr)) return o;
-    for (i = 0; i < arr.length; i++) {
-      if (typeof arr[i] === 'number' && isFinite(arr[i])) o.push(arr[i] * 1000);
-    }
-    return o;
-  }
-  var rises = toMs(sun.rise), sets = toMs(sun.set);
-  var nextSet = null, lastSet = null, nextRise = null, lastRise = null, i;
-  for (i = 0; i < sets.length; i++) {
-    if (sets[i] > now) { if (nextSet === null || sets[i] < nextSet) nextSet = sets[i]; }
-    else if (lastSet === null || sets[i] > lastSet) lastSet = sets[i];
-  }
-  for (i = 0; i < rises.length; i++) {
-    if (rises[i] > now) { if (nextRise === null || rises[i] < nextRise) nextRise = rises[i]; }
-    else if (lastRise === null || rises[i] > lastRise) lastRise = rises[i];
-  }
-  var out = [], dur;
-  if (nextSet !== null && nextSet - now <= 120 * MIN) {
-    dur = wxDurText((nextSet - now) / MIN);
-    out.push(wxItem(WX_P_OTHER, 'güneş ' + wxTimeLoc(nextSet) + ' batıyor, ' + dur + ' kaldı.'));
-    out.push(wxItem(WX_P_OTHER, 'gün batımına ' + dur + ' var, güneş ' + wxTimeLoc(nextSet) + ' batıyor.'));
-  } else if (lastSet !== null && now - lastSet <= 45 * MIN) {
-    out.push(wxItem(WX_P_OTHER, 'güneş ' + wxTimeLoc(lastSet) + ' battı.'));
-  }
-  if (nextRise !== null && nextRise - now <= 120 * MIN) {
-    dur = wxDurText((nextRise - now) / MIN);
-    out.push(wxItem(WX_P_OTHER, 'güneş ' + wxTimeLoc(nextRise) + ' doğuyor, ' + dur + ' kaldı.'));
-    out.push(wxItem(WX_P_OTHER, 'gün doğumuna ' + dur + ' var, güneş ' + wxTimeLoc(nextRise) + ' doğuyor.'));
-  } else if (lastRise !== null && now - lastRise <= 60 * MIN) {
-    out.push(wxItem(WX_P_OTHER, 'güneş ' + wxTimeLoc(lastRise) + ' doğdu.'));
-  }
-  return out;
-}
-
-// Alt metin havuzuna eklenecek hava cumleleri: oncelik katmanina gore gruplanir.
-// Donus: { 1: [...], 2: [...], 3: [...], 4: [...] } (hazir HTML metinleri)
-function buildWxTiers() {
-  var d = wxFreshData();
-  var tiers = { 1: [], 2: [], 3: [], 4: [] };
-  if (!d) return tiers;
-  var items = [], cur = [], i, it, p;
-  try {
-    cur = buildWxCurrent(d);
-    for (i = 0; i < cur.length; i++) {
-      items.push(wxItem(wxCategory(d.wx.code) === 'thunder' ? WX_P_CRIT : WX_P_CURRENT, cur[i]));
-    }
-  } catch (e) {}
-  try { items = items.concat(buildWxAlerts(d)); } catch (e) {}
-  try { items = items.concat(buildWxConditions(d)); } catch (e) {}
-  try { items = items.concat(buildWxSun(d)); } catch (e) {}
-  for (i = 0; i < items.length; i++) {
-    it = items[i];
-    if (!it || typeof it.s !== 'string' || !it.s) continue;
-    p = (it.p >= 1 && it.p <= 4) ? it.p : WX_P_OTHER;
-    tiers[p].push(wxEsc(wxCap(it.s)));
-  }
-  return tiers;
-}
-
-// Geriye uyumluluk: tum cumleler tek listede (oncelik sirasiyla).
-function buildWxSentences() {
-  var t = buildWxTiers();
-  return t[1].concat(t[2], t[3], t[4]);
-}
-
-// Dolu olan en yuksek oncelikli katmandan rastgele bir cumle secer.
-// Sira: kritik uyari, yaklasan yagis, anlik durum, diger bilgiler.
-// Hava verisi yoksa alt metin bos kalir (eski cumleler kaldirildi).
-function pickWelcomeSubtitle() {
-  var t = null, p, list;
-  try { t = buildWxTiers(); } catch (e) {}
-  if (t) {
-    for (p = 1; p <= 4; p++) {
-      list = t[p];
-      if (list && list.length) return { text: list[Math.floor(Math.random() * list.length)], wx: true, tier: p };
-    }
-  }
-  return { text: '', wx: false, tier: 9 };
-}
-function welcomeSubtitleHTML() {
-  var st = getWelcomeWxState();
-  var p = pickWelcomeSubtitle();
-  return '<div class="welcome-subtitle" data-wx="' + st + '" data-wxs="' + (p.wx ? 1 : 0) + '" data-wxp="' + p.tier + '" style="min-height:1.5em">' + p.text + '</div>';
-}
-// Hava verisi karsilama ekranindan sonra gelirse alt metni (gerekirse) hava cumlesiyle gunceller.
-function refreshWelcomeWx() {
-  try {
-    var el = document.querySelector('#welcomeContainer .welcome-subtitle');
-    if (!el) return;
-    refreshWelcomeIcon();
-    var was = el.getAttribute('data-wx') || 'none';
-    var now = getWelcomeWxState();
-    if (WX_RANK[now] <= WX_RANK[was]) return;
-    el.setAttribute('data-wx', now);
-    var p = pickWelcomeSubtitle();
-    if (!p.wx) return;
-    if (el.getAttribute('data-wxs') === '1') {
-      // Zaten bir hava cumlesi var: yalnizca yeni veri daha yuksek oncelikliyse degistir.
-      var oldTier = parseInt(el.getAttribute('data-wxp'), 10);
-      if (!isFinite(oldTier) || p.tier >= oldTier) return;
-    }
-    el.innerHTML = p.text;
-    el.setAttribute('data-wxs', '1');
-    el.setAttribute('data-wxp', String(p.tier));
-  } catch (e) {}
-}
-
-// Saate gore karsilama ikonu (satir ici SVG; renk/boyut .welcome-icon CSS'inden gelir).
-const WELCOME_ICONS = {
-  morning: '<svg viewBox="0 0 120 120" aria-hidden="true"><defs><radialGradient id="wiMg" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#FFE0A0" stop-opacity=".65"/><stop offset="1" stop-color="#FFE0A0" stop-opacity="0"/></radialGradient><radialGradient id="wiMs" cx="40%" cy="35%" r="75%"><stop offset="0" stop-color="#FFF1BC"/><stop offset=".6" stop-color="#FFC456"/><stop offset="1" stop-color="#F59A45"/></radialGradient><clipPath id="wiMc"><rect x="0" y="0" width="120" height="80"/></clipPath></defs><circle class="wi-glow" cx="60" cy="80" r="54" fill="url(#wiMg)"/><g clip-path="url(#wiMc)"><g class="wi-rise"><g class="wi-spin wi-spin-h" style="transform-origin:60px 80px"><g stroke="#FFC456" stroke-width="3.4" stroke-linecap="round"><line x1="60" y1="51" x2="60" y2="37"/><line class="wi-ray" style="animation-delay:0.2s" x1="74.5" y1="54.9" x2="78.5" y2="48"/><line x1="85.1" y1="65.5" x2="97.2" y2="58.5"/><line class="wi-ray" style="animation-delay:0.8s" x1="89" y1="80" x2="97" y2="80"/><line x1="85.1" y1="94.5" x2="97.2" y2="101.5"/><line class="wi-ray" style="animation-delay:1.2s" x1="74.5" y1="105.1" x2="78.5" y2="112"/><line x1="60" y1="109" x2="60" y2="123"/><line class="wi-ray" style="animation-delay:1.8s" x1="45.5" y1="105.1" x2="41.5" y2="112"/><line x1="34.9" y1="94.5" x2="22.8" y2="101.5"/><line class="wi-ray" style="animation-delay:2.2s" x1="31" y1="80" x2="23" y2="80"/><line x1="34.9" y1="65.5" x2="22.8" y2="58.5"/><line class="wi-ray" style="animation-delay:2.8s" x1="45.5" y1="54.9" x2="41.5" y2="48"/></g></g><circle cx="60" cy="80" r="22" fill="url(#wiMs)"/></g></g><path d="M12 80 H108" stroke="#E8B48A" stroke-width="2.6" stroke-linecap="round" fill="none"/><path class="wi-shimmer" d="M30 88 H90" stroke="#E8B48A" stroke-width="2.2" stroke-linecap="round" fill="none" opacity=".5"/><path class="wi-shimmer" style="animation-delay:.9s" d="M44 95 H76" stroke="#E8B48A" stroke-width="2" stroke-linecap="round" fill="none" opacity=".35"/><g class="wi-cloud" opacity=".45" fill="#F6E3D3"><g transform="translate(84 38) scale(1)"><ellipse cx="0" cy="0" rx="12" ry="4.5"/><ellipse cx="-8" cy="3" rx="8" ry="3.5"/><ellipse cx="9" cy="3" rx="7" ry="3"/></g></g><g class="wi-cloud wi-cloud-b" opacity=".35" fill="#F6E3D3"><g transform="translate(26 52) scale(0.7)"><ellipse cx="0" cy="0" rx="12" ry="4.5"/><ellipse cx="-8" cy="3" rx="8" ry="3.5"/><ellipse cx="9" cy="3" rx="7" ry="3"/></g></g></svg>',
-  afternoon: '<svg viewBox="0 0 120 120" aria-hidden="true"><defs><radialGradient id="wiAg" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#FFE9A8" stop-opacity=".6"/><stop offset="1" stop-color="#FFB45E" stop-opacity="0"/></radialGradient><radialGradient id="wiAs" cx="38%" cy="34%" r="72%"><stop offset="0" stop-color="#FFF4C2"/><stop offset=".55" stop-color="#FFC84F"/><stop offset="1" stop-color="#F28A35"/></radialGradient></defs><circle class="wi-glow" cx="60" cy="60" r="58" fill="url(#wiAg)"/><g class="wi-spin" style="transform-origin:60px 60px"><g stroke="#FFC84F" stroke-width="3.6" stroke-linecap="round"><line x1="60" y1="30" x2="60" y2="15"/><line class="wi-ray" style="animation-delay:0.2s" x1="75" y1="34" x2="79" y2="27.1"/><line x1="86" y1="45" x2="99" y2="37.5"/><line class="wi-ray" style="animation-delay:0.8s" x1="90" y1="60" x2="98" y2="60"/><line x1="86" y1="75" x2="99" y2="82.5"/><line class="wi-ray" style="animation-delay:1.2s" x1="75" y1="86" x2="79" y2="92.9"/><line x1="60" y1="90" x2="60" y2="105"/><line class="wi-ray" style="animation-delay:1.8s" x1="45" y1="86" x2="41" y2="92.9"/><line x1="34" y1="75" x2="21" y2="82.5"/><line class="wi-ray" style="animation-delay:2.2s" x1="30" y1="60" x2="22" y2="60"/><line x1="34" y1="45" x2="21" y2="37.5"/><line class="wi-ray" style="animation-delay:2.8s" x1="45" y1="34" x2="41" y2="27.1"/></g></g><circle cx="60" cy="60" r="21" fill="url(#wiAs)"/><ellipse cx="53" cy="52" rx="7" ry="4.5" fill="#fff" opacity=".35" transform="rotate(-30 53 52)"/></svg>',
-  evening: '<svg viewBox="0 0 120 120" aria-hidden="true"><defs><radialGradient id="wiEg" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#FF8FA0" stop-opacity=".65"/><stop offset="1" stop-color="#FF8FA0" stop-opacity="0"/></radialGradient><radialGradient id="wiEs" cx="40%" cy="35%" r="75%"><stop offset="0" stop-color="#FFD08A"/><stop offset=".6" stop-color="#FF8A5E"/><stop offset="1" stop-color="#E5516F"/></radialGradient><clipPath id="wiEc"><rect x="0" y="0" width="120" height="82"/></clipPath></defs><circle class="wi-glow" cx="60" cy="82" r="54" fill="url(#wiEg)"/><g clip-path="url(#wiEc)"><g class="wi-sink"><g class="wi-spin wi-spin-h" style="transform-origin:60px 82px"><g stroke="#FF9A70" stroke-width="3.4" stroke-linecap="round"><line x1="60" y1="53" x2="60" y2="39"/><line class="wi-ray" style="animation-delay:0.2s" x1="74.5" y1="56.9" x2="78.5" y2="50"/><line x1="85.1" y1="67.5" x2="97.2" y2="60.5"/><line class="wi-ray" style="animation-delay:0.8s" x1="89" y1="82" x2="97" y2="82"/><line x1="85.1" y1="96.5" x2="97.2" y2="103.5"/><line class="wi-ray" style="animation-delay:1.2s" x1="74.5" y1="107.1" x2="78.5" y2="114"/><line x1="60" y1="111" x2="60" y2="125"/><line class="wi-ray" style="animation-delay:1.8s" x1="45.5" y1="107.1" x2="41.5" y2="114"/><line x1="34.9" y1="96.5" x2="22.8" y2="103.5"/><line class="wi-ray" style="animation-delay:2.2s" x1="31" y1="82" x2="23" y2="82"/><line x1="34.9" y1="67.5" x2="22.8" y2="60.5"/><line class="wi-ray" style="animation-delay:2.8s" x1="45.5" y1="56.9" x2="41.5" y2="50"/></g></g><circle cx="60" cy="82" r="22" fill="url(#wiEs)"/></g></g><path d="M12 82 H108" stroke="#E98A93" stroke-width="2.6" stroke-linecap="round" fill="none"/><path class="wi-shimmer" d="M30 90 H90" stroke="#E98A93" stroke-width="2.2" stroke-linecap="round" fill="none" opacity=".5"/><path class="wi-shimmer" style="animation-delay:.9s" d="M44 97 H76" stroke="#E98A93" stroke-width="2" stroke-linecap="round" fill="none" opacity=".35"/><g transform="translate(30 26) scale(0.8)"><path class="wi-twinkle" style="animation-delay:0s" fill="#FFE7C2" d="M0 -6 L1.6 -1.6 L6 0 L1.6 1.6 L0 6 L-1.6 1.6 L-6 0 L-1.6 -1.6Z"/></g><g transform="translate(94 22) scale(1)"><path class="wi-twinkle" style="animation-delay:0.9s" fill="#FFE7C2" d="M0 -6 L1.6 -1.6 L6 0 L1.6 1.6 L0 6 L-1.6 1.6 L-6 0 L-1.6 -1.6Z"/></g><g transform="translate(104 48) scale(0.6)"><path class="wi-twinkle" style="animation-delay:1.6s" fill="#FFE7C2" d="M0 -6 L1.6 -1.6 L6 0 L1.6 1.6 L0 6 L-1.6 1.6 L-6 0 L-1.6 -1.6Z"/></g><g class="wi-cloud" opacity=".3" fill="#F6E3D3"><g transform="translate(80 44) scale(0.8)"><ellipse cx="0" cy="0" rx="12" ry="4.5"/><ellipse cx="-8" cy="3" rx="8" ry="3.5"/><ellipse cx="9" cy="3" rx="7" ry="3"/></g></g></svg>',
-  night: '<svg viewBox="0 0 120 120" aria-hidden="true"><defs><radialGradient id="wiNg" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#FFF1C9" stop-opacity=".5"/><stop offset="1" stop-color="#FFE6A8" stop-opacity="0"/></radialGradient><linearGradient id="wiNm" x1="15%" y1="10%" x2="85%" y2="90%"><stop offset="0" stop-color="#FFF8E1"/><stop offset="1" stop-color="#EBC987"/></linearGradient><mask id="wiNk" maskUnits="userSpaceOnUse" x="0" y="0" width="120" height="120"><rect width="120" height="120" fill="#fff"/><circle cx="73" cy="50" r="27" fill="#000"/></mask></defs><g transform="translate(88 30) scale(1.1)"><path class="wi-twinkle" style="animation-delay:0s" fill="#FFF3C9" d="M0 -6 L1.6 -1.6 L6 0 L1.6 1.6 L0 6 L-1.6 1.6 L-6 0 L-1.6 -1.6Z"/></g><g transform="translate(102 58) scale(0.7)"><path class="wi-twinkle" style="animation-delay:1.1s" fill="#FFF3C9" d="M0 -6 L1.6 -1.6 L6 0 L1.6 1.6 L0 6 L-1.6 1.6 L-6 0 L-1.6 -1.6Z"/></g><g transform="translate(72 14) scale(0.6)"><path class="wi-twinkle" style="animation-delay:0.5s" fill="#FFF3C9" d="M0 -6 L1.6 -1.6 L6 0 L1.6 1.6 L0 6 L-1.6 1.6 L-6 0 L-1.6 -1.6Z"/></g><g transform="translate(20 30) scale(0.65)"><path class="wi-twinkle" style="animation-delay:1.6s" fill="#FFF3C9" d="M0 -6 L1.6 -1.6 L6 0 L1.6 1.6 L0 6 L-1.6 1.6 L-6 0 L-1.6 -1.6Z"/></g><g transform="translate(98 92) scale(0.6)"><path class="wi-twinkle" style="animation-delay:2.1s" fill="#FFF3C9" d="M0 -6 L1.6 -1.6 L6 0 L1.6 1.6 L0 6 L-1.6 1.6 L-6 0 L-1.6 -1.6Z"/></g><g transform="translate(24 96) scale(0.55)"><path class="wi-twinkle" style="animation-delay:0.8s" fill="#FFF3C9" d="M0 -6 L1.6 -1.6 L6 0 L1.6 1.6 L0 6 L-1.6 1.6 L-6 0 L-1.6 -1.6Z"/></g><g class="wi-float"><circle class="wi-glow" cx="52" cy="66" r="46" fill="url(#wiNg)"/><circle cx="52" cy="66" r="30" fill="url(#wiNm)" mask="url(#wiNk)"/></g><line class="wi-shoot" x1="26" y1="12" x2="38" y2="19" stroke="#FFF8E1" stroke-width="2" stroke-linecap="round"/></svg>'
-};
-// ---- Hava durumuna gore ikonlar ----
-// Bulut sekli: 60x42 kutu (merkez 30,24). fill ve ince alt golge rengi parametre.
-function wiCloud(x, y, sc, fill, shade, cls, style) {
-  var body = '<rect x="2" y="28" width="56" height="14" rx="7"/><circle cx="18" cy="28" r="11"/><circle cx="32" cy="20" r="15"/><circle cx="47" cy="28" r="11"/>';
-  return '<g transform="translate(' + x + ' ' + y + ') scale(' + sc + ')"><g' + (cls ? ' class="' + cls + '"' : '') + (style ? ' style="' + style + '"' : '') + '>' +
-    '<g fill="' + shade + '" transform="translate(0 2.5)">' + body + '</g><g fill="' + fill + '">' + body + '</g>' +
-    '<ellipse cx="30" cy="14" rx="9" ry="4" fill="#fff" opacity=".35"/></g></g>';
-}
-// Yagmur damlasi (x,y mutlak; gecikme saniye)
-function wiDrop(x, y, delay, cls, color, len) {
-  return '<g transform="translate(' + x + ' ' + y + ')"><g class="wi-drop ' + (cls || '') + '" style="animation-delay:' + delay + 's"><line x1="0" y1="0" x2="-2.2" y2="' + (len || 9) + '" stroke="' + (color || '#8CC8FF') + '" stroke-width="2.6" stroke-linecap="round"/></g></g>';
-}
-function wiFlake(x, y, delay, color) {
-  return '<g transform="translate(' + x + ' ' + y + ')"><g class="wi-flake" style="animation-delay:' + delay + 's"><path d="M0 -4.2V4.2M-3.6 -2.1L3.6 2.1M-3.6 2.1L3.6 -2.1" stroke="' + (color || '#F2F8FF') + '" stroke-width="1.5" stroke-linecap="round" fill="none"/></g></g>';
-}
-function wiBolt(x, y, delay) {
-  return '<g transform="translate(' + x + ' ' + y + ')"><g class="wi-flash" style="animation-delay:' + delay + 's"><path d="M5 0L-6 17H0L-4 32L10 11H3.5L9 0Z" fill="#FFD84A" stroke="#FFF3B0" stroke-width=".8" stroke-linejoin="round"/></g></g>';
-}
-function wiSunSmall(cx, cy) {
-  var r = '', k;
-  for (k = 0; k < 8; k++) r += '<line x1="0" y1="-21" x2="0" y2="-27" transform="rotate(' + (k * 45) + ')" stroke="#FFC84F" stroke-width="3" stroke-linecap="round"/>';
-  return '<g transform="translate(' + cx + ' ' + cy + ')"><circle class="wi-glow" r="34" fill="url(#wxSg)"/><g class="wi-spin" style="transform-box:fill-box;transform-origin:center">' + r + '</g><circle r="16" fill="url(#wxSs)"/></g>';
-}
-function wiMoonSmall(cx, cy) {
-  return '<g transform="translate(' + cx + ' ' + cy + ')"><circle class="wi-glow" r="32" fill="url(#wxMg)"/>' +
-    '<circle r="17" fill="url(#wxMm)" mask="url(#wxMk)"/>' +
-    '<g transform="translate(22 -20) scale(.8)"><path class="wi-twinkle" fill="#FFF3C9" d="M0 -6 L1.6 -1.6 L6 0 L1.6 1.6 L0 6 L-1.6 1.6 L-6 0 L-1.6 -1.6Z"/></g></g>';
-}
-var WX_ICON_DEFS =
-  '<defs>' +
-  '<radialGradient id="wxSg" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#FFE9A8" stop-opacity=".6"/><stop offset="1" stop-color="#FFB45E" stop-opacity="0"/></radialGradient>' +
-  '<radialGradient id="wxSs" cx="38%" cy="34%" r="72%"><stop offset="0" stop-color="#FFF4C2"/><stop offset=".55" stop-color="#FFC84F"/><stop offset="1" stop-color="#FF9F3C"/></radialGradient>' +
-  '<radialGradient id="wxMg" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#FFF1C9" stop-opacity=".5"/><stop offset="1" stop-color="#FFE6A8" stop-opacity="0"/></radialGradient>' +
-  '<linearGradient id="wxMm" x1="15%" y1="10%" x2="85%" y2="90%"><stop offset="0" stop-color="#FFF8E1"/><stop offset="1" stop-color="#EBC987"/></linearGradient>' +
-  '<mask id="wxMk" maskUnits="userSpaceOnUse" x="-40" y="-40" width="80" height="80"><rect x="-40" y="-40" width="80" height="80" fill="#fff"/><circle cx="9" cy="-6" r="15" fill="#000"/></mask>' +
-  '</defs>';
-function wiWrap(inner) {
-  return '<svg viewBox="0 0 120 120" aria-hidden="true">' + WX_ICON_DEFS + inner + '</svg>';
-}
-// night: gece ise bulut renkleri biraz koyulasir.
-function wiTone(night, light, dark) {
-  return night ? dark : light;
-}
-var WX_ICON_BUILD = {
-  partly: function (n) {
-    var f = wiTone(n, '#F4F7FB', '#C9D2E0'), sh = wiTone(n, '#C6D2E2', '#8F9BB2');
-    return wiWrap('<g class="wi-bob">' + (n ? wiMoonSmall(76, 40) : wiSunSmall(76, 40)) + '</g>' + wiCloud(18, 50, 1.25, f, sh, 'wi-cloud'));
-  },
-  cloudy: function (n) {
-    var f = wiTone(n, '#E8EDF4', '#B9C3D3'), sh = wiTone(n, '#BCC8D8', '#8190A6');
-    var f2 = wiTone(n, '#CBD5E2', '#98A4B8'), sh2 = wiTone(n, '#A5B3C6', '#6F7C92');
-    return wiWrap(wiCloud(44, 24, 1.0, f2, sh2, 'wi-cloud wi-cloud-b') + wiCloud(14, 44, 1.4, f, sh, 'wi-cloud'));
-  },
-  fog: function (n) {
-    var f = wiTone(n, '#E6ECF3', '#B4BECF'), sh = wiTone(n, '#BAC6D6', '#8190A6'), m = wiTone(n, '#D5DEE9', '#A3AEC1');
-    var lines = '';
-    lines += '<g transform="translate(22 78)"><rect class="wi-mist" style="animation-delay:0s" width="64" height="5" rx="2.5" fill="' + m + '"/></g>';
-    lines += '<g transform="translate(32 89)"><rect class="wi-mist wi-mist-b" style="animation-delay:.6s" width="62" height="5" rx="2.5" fill="' + m + '"/></g>';
-    lines += '<g transform="translate(16 100)"><rect class="wi-mist" style="animation-delay:1.2s" width="58" height="5" rx="2.5" fill="' + m + '"/></g>';
-    return wiWrap(wiCloud(17, 20, 1.45, f, sh, 'wi-cloud') + lines);
-  },
-  drizzle: function (n) {
-    var f = wiTone(n, '#D5DDE8', '#A3AEC1'), sh = wiTone(n, '#A9B6C8', '#7A869C');
-    var d = wiDrop(38, 76, 0, 'wi-drop-s', '#A9D6FF', 6) + wiDrop(58, 80, .8, 'wi-drop-s', '#A9D6FF', 6) + wiDrop(78, 76, 1.5, 'wi-drop-s', '#A9D6FF', 6) + wiDrop(48, 78, 1.9, 'wi-drop-s', '#A9D6FF', 6);
-    return wiWrap(d + wiCloud(18, 24, 1.4, f, sh, 'wi-cloud'));
-  },
-  rain: function (n) {
-    var f = wiTone(n, '#BAC5D4', '#8C98AC'), sh = wiTone(n, '#8E9BB0', '#66728A');
-    var d = wiDrop(36, 76, 0, '', '#7DBEFF') + wiDrop(52, 78, .5, '', '#7DBEFF') + wiDrop(68, 76, .25, '', '#7DBEFF') + wiDrop(84, 78, .75, '', '#7DBEFF');
-    return wiWrap(d + wiCloud(18, 24, 1.4, f, sh, 'wi-cloud'));
-  },
-  shower: function (n) {
-    var f = wiTone(n, '#8F9CB1', '#6B7790'), sh = wiTone(n, '#69768D', '#4D586E');
-    var d = wiDrop(30, 74, 0, 'wi-drop-f', '#6FB4FF', 11) + wiDrop(44, 77, .3, 'wi-drop-f', '#6FB4FF', 11) + wiDrop(58, 74, .6, 'wi-drop-f', '#6FB4FF', 11) + wiDrop(72, 77, .15, 'wi-drop-f', '#6FB4FF', 11) + wiDrop(86, 74, .45, 'wi-drop-f', '#6FB4FF', 11);
-    return wiWrap(d + wiCloud(18, 22, 1.4, f, sh, 'wi-cloud'));
-  },
-  sleet: function (n) {
-    var f = wiTone(n, '#B4BFCF', '#8793A8'), sh = wiTone(n, '#8A97AB', '#626E85');
-    var d = wiDrop(36, 76, 0, '', '#7DBEFF') + wiFlake(52, 80, .6) + wiDrop(68, 76, .3, '', '#7DBEFF') + wiFlake(84, 80, 1.2);
-    return wiWrap(d + wiCloud(18, 24, 1.4, f, sh, 'wi-cloud'));
-  },
-  snow: function (n) {
-    var f = wiTone(n, '#E2E9F2', '#B1BBCD'), sh = wiTone(n, '#B5C2D4', '#8190A6');
-    var d = wiFlake(34, 76, 0) + wiFlake(50, 80, .9) + wiFlake(66, 76, 1.8) + wiFlake(82, 80, .4) + wiFlake(58, 78, 2.6);
-    return wiWrap(d + wiCloud(18, 24, 1.4, f, sh, 'wi-cloud'));
-  },
-  thunder: function (n) {
-    var f = wiTone(n, '#7E8AA0', '#5E6A82'), sh = wiTone(n, '#5C6880', '#434D63');
-    var d = wiDrop(34, 78, .2, '', '#7DBEFF') + wiDrop(88, 76, .7, '', '#7DBEFF');
-    return wiWrap(d + wiCloud(18, 20, 1.4, f, sh, 'wi-cloud') + wiBolt(55, 66, 0));
-  }
-};
-// Gecerli hava verisine gore ikon anahtari: 'clear' haric kategori adi + gece bayragi, yoksa saat blogu.
-function getWelcomeIconKey() {
-  var block = getWelcomeTimeBlock(), d = null, cat = null, night = false;
-  try {
-    d = wxFreshData();
-    if (d) {
-      cat = wxCategory(d.wx.code);
-      night = (d.wx.day === false) || block === 'night';
-    }
-  } catch (e) { cat = null; }
-  if (cat && typeof WX_ICON_BUILD !== 'undefined' && WX_ICON_BUILD[cat]) return cat + (night ? '|n' : '|d');
-  // Acik hava (ya da veri yok): saat blogu ikonu. Veri geceyi soyluyorsa gece ikonu.
-  if (cat === 'clear' && night) return 'night';
-  return block;
-}
-function getWelcomeIconSVG() {
-  var key = getWelcomeIconKey(), parts = key.split('|');
-  try {
-    if (typeof WX_ICON_BUILD !== 'undefined' && WX_ICON_BUILD[parts[0]]) return WX_ICON_BUILD[parts[0]](parts[1] === 'n');
-  } catch (e) {}
-  return WELCOME_ICONS[WELCOME_ICONS[parts[0]] ? parts[0] : getWelcomeTimeBlock()] || WELCOME_ICONS.afternoon;
-}
-// Hava verisi sonradan gelir ya da degisirse ikonu (yalnizca anahtar degistiyse) yeniler.
-function refreshWelcomeIcon() {
-  try {
-    var box = document.querySelector('#welcomeContainer .welcome-icon');
-    if (!box) return;
-    var key = getWelcomeIconKey();
-    if (box.getAttribute('data-wxi') === key) return;
-    box.innerHTML = getWelcomeIconSVG();
-    box.setAttribute('data-wxi', key);
-  } catch (e) {}
-}
-
 function switchChat(id) {
   stopSpeaking();
   currentChatId = id;
@@ -6764,10 +6120,7 @@ function switchChat(id) {
 
   if (chat.messages.length === 0) {
     chatArea.innerHTML = `<div class="welcome-container" id="welcomeContainer">
-      <div class="welcome-icon" aria-hidden="true" data-wxi="${getWelcomeIconKey()}">${getWelcomeIconSVG()}</div>
       <div class="pulse-orb">E</div>
-      <div class="welcome-title">${getWelcomeTitle()}</div>
-      ${welcomeSubtitleHTML()}
     </div>`;
     chatArea.classList.add('is-empty');
   }
@@ -6894,15 +6247,6 @@ document.addEventListener('keydown', function (e) {
     if (r === 0) r = 0;
     return (r < 0 ? '\u2212' + Math.abs(r) : '' + r) + '\u00B0C';
   }
-  // Yer adlarini Turkce kurallarla "Orhangazı", "Bursa" biciminde (sadece bas harf buyuk) yazar.
-  function titleTr(s) {
-    return String(s || '').split(' ').map(function (w) {
-      return w.split('-').map(function (p) {
-        if (!p) return p;
-        return p.charAt(0).toLocaleUpperCase('tr-TR') + p.slice(1).toLocaleLowerCase('tr-TR');
-      }).join('-');
-    }).join(' ');
-  }
   // WMO hava kodu -> ikon + Turkce aciklama (gece/gunduz duyarli).
   function wxInfo(code, day) {
     if (code === null || code === undefined) return null;
@@ -6932,11 +6276,6 @@ document.addEventListener('keydown', function (e) {
     return null;
   }
   function renderWx(d) {
-    try {
-      d._wxPlace = titleTr(d.district || d.city || '');
-      window.WELCOME_WX = d;
-      refreshWelcomeWx();
-    } catch (e) {}
     try {
       var box = $('hdrWx'), ico = $('hdrWxIco'), tEl = $('hdrWxTemp'), dEl = $('hdrWxDesc');
       if (!box || !ico || !tEl || !dEl) return;
