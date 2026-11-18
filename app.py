@@ -11872,6 +11872,29 @@ def index():
     return HTML
 
 # ============================================
+# OTONOM GÖREV VE AKILLI OTOMASYON SİSTEMİ (tasks/ paketi)
+# Mevcut sisteme dokunmadan eklenir: ayrı SQLite dosyası (~/ai_tasks.db), ayrı /tasks API'si,
+# ayrı arka plan zamanlayıcısı. Başlatılamazsa uygulama görevler olmadan eskisi gibi çalışır.
+# Devre dışı bırakmak için: TASKS_DISABLED=1 ortam değişkeni.
+# ============================================
+TASKS_ENABLED = False
+if os.environ.get('TASKS_DISABLED') != '1':
+    try:
+        import sys as _tk_sys
+        from tasks import init_task_system as _tk_init
+        from tasks.bridge import AppBridge as _TkBridge
+        from tasks.ui import inject as _tk_inject_ui
+        _tk_services = _tk_init(app, _TkBridge(_tk_sys.modules[__name__]))
+        _tk_html, _tk_warns = _tk_inject_ui(HTML)
+        HTML = _tk_html
+        for _tk_w in _tk_warns:
+            print(f'[gorevler] arayüz uyarısı: {_tk_w}')
+        TASKS_ENABLED = True
+    except Exception as _tk_err:
+        print(f'[gorevler] görev sistemi başlatılamadı, uygulama görevler olmadan çalışacak: '
+              f'{type(_tk_err).__name__}: {_tk_err}')
+
+# ============================================
 # UYGULAMAYI BAŞLAT
 # ============================================
 if __name__ == '__main__':
