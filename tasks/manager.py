@@ -173,7 +173,8 @@ class TaskManager:
             'schedule_config': cfg,
             'schedule_text': sch.describe(row['task_type'], cfg, row['timezone']),
             'options': {k: opts.get(k) for k in
-                        ('research_depth', 'output_format', 'output_length', 'notify_pref', 'condition')
+                        ('research_depth', 'output_format', 'output_length', 'notify_pref', 'condition',
+                         'agent_mode', 'agent_budget')
                         if k in opts},
             'timezone': row['timezone'],
             'created_at': _iso(row['created_at']),
@@ -262,6 +263,10 @@ class TaskManager:
             opts['output_length'] = _choice(p.get('output_length'), config.OUTPUT_LENGTHS, 'output_length', 'orta')
         if 'notify_pref' in p or existing_opts is None:
             opts['notify_pref'] = _choice(p.get('notify_pref'), config.NOTIFY_PREFS, 'notify_pref', 'hepsi')
+        if 'agent_mode' in p or existing_opts is None:
+            opts['agent_mode'] = _bool(p.get('agent_mode'), 'agent_mode')
+        if 'agent_budget' in p or existing_opts is None:
+            opts['agent_budget'] = _choice(p.get('agent_budget'), config.AGENT_BUDGETS, 'agent_budget', 'normal')
         return opts
 
     def _task_count_check(self):

@@ -133,6 +133,15 @@ CSS = r'''
 .tk-ni b{display:block;font-size:14px;margin-bottom:2px}.tk-ni span{display:block;font-size:13px;color:var(--stone);overflow-wrap:anywhere}.tk-ni i{display:block;font-style:normal;font-size:11.5px;color:var(--time-gray);margin-top:3px}
 .tk-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:1300;background:var(--obsidian-3);border:1px solid var(--hairline);color:var(--ivory);padding:10px 16px;border-radius:12px;font-family:var(--font-ui);font-size:14px;max-width:92vw;box-shadow:0 10px 30px rgba(0,0,0,.45);display:none}
 .tk-toast.open{display:block}.tk-toast.err{border-color:var(--danger);color:#F1B2A9}
+.tk-chip.tk-agent{color:var(--brass-bright);border-color:var(--brass)}
+.tk-turns{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:5px}
+.tk-turns li{border:1px solid var(--hairline-soft);border-radius:8px;padding:6px 9px;font-size:13px;background:var(--obsidian-2)}
+.tk-turns .th{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tk-turns .tn{width:20px;height:20px;border-radius:50%;background:var(--brass-dim);color:var(--brass-bright);font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.tk-turns .ta{color:var(--stone);overflow-wrap:anywhere;min-width:0;flex:1}
+.tk-turns .tt{color:var(--ink-dim);font-size:12.5px;margin-top:3px;overflow-wrap:anywhere}
+.tk-turns .tobs{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12.5px;color:var(--ink-dim);margin-top:5px;max-height:240px;overflow:auto}
+.tk-turns li.t-rejected,.tk-turns li.t-error{border-color:rgba(181,86,75,.4)}
 @media (max-width:900px){.tk-list{grid-template-columns:1fr}}
 @media (max-width:640px){
   .tk-top{padding:12px 12px}.tk-body{padding:12px 12px 24px}

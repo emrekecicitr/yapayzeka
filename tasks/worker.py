@@ -140,12 +140,15 @@ class TaskRuntime:
                 self._active.discard(tid)
 
     def _heartbeat(self, tid, stop):
-        while not stop.wait(config.HEARTBEAT_SECONDS):
-            try:
-                if not self.mgr.heartbeat(tid, self.owner):
-                    return  # sahiplik kayboldu; yurutucu bir sonraki kontrol noktasinda durur
-            except Exception:  # noqa: BLE001
-                pass
+        try:
+            while not stop.wait(config.HEARTBEAT_SECONDS):
+                try:
+                    if not self.mgr.heartbeat(tid, self.owner):
+                        return  # sahiplik kayboldu; yurutucu bir sonraki kontrol noktasinda durur
+                except Exception:  # noqa: BLE001
+                    pass
+        finally:
+            self.mgr.db.close_thread()   # is basina bir thread acilir: baglantisi sizmasin
 
     def active_ids(self):
         with self._lock:

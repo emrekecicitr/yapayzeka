@@ -68,6 +68,22 @@ LOG_PATH = os.environ.get('TASKS_LOG_PATH') or os.path.expanduser('~/ai_tasks.lo
 LOG_MAX_BYTES = 512 * 1024
 LOG_BACKUPS = 2
 
+# Ajan modu (araç kullanan döngü). Tüm sınırlar SERT tavandır: döngü bu sayılardan fazla dönemez.
+AGENT_BUDGETS = ('dar', 'normal', 'genis')
+AGENT_TURNS = {'dar': 5, 'normal': 8, 'genis': 12}       # en çok model karar turu
+AGENT_SEARCHES = {'dar': 2, 'normal': 4, 'genis': 6}     # en çok internet araması
+AGENT_READS = {'dar': 1, 'normal': 3, 'genis': 5}        # en çok sayfa okuma
+AGENT_CALCS = 8                                          # en çok hesaplama
+AGENT_RECALLS = 2                                        # en çok önceki sonuç okuma
+AGENT_MAX_TURNS_HARD = 15
+AGENT_TURN_MAX_TOKENS = _int('TASKS_AGENT_TURN_TOKENS', 700, 200, 2000)
+AGENT_OBS_CHARS = 2400          # tek araç sonucunun modele verilen en çok karakteri
+AGENT_READ_CHARS = 3200         # sayfa okuma sonucu için
+AGENT_MAX_INVALID = 3           # toplam geçersiz çıktı hakkı (aşılırsa ajan nazikçe durur)
+AGENT_REPAIR_PER_TURN = 2       # aynı tur içinde geçersiz çıktıyı düzelttirme hakkı
+AGENT_MAX_SOURCES = 12
+AGENT_CALC_EXPR_CHARS = 200
+
 TASK_TYPES = ('once', 'recurring', 'conditional', 'multistep')
 STATUSES = ('pending', 'scheduled', 'running', 'paused', 'completed',
             'failed', 'cancelled', 'awaiting_approval')

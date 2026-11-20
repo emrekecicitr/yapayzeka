@@ -14,6 +14,7 @@ import json
 import os
 import sqlite3
 import threading
+import weakref
 
 SCHEMA_V1 = [
     """CREATE TABLE IF NOT EXISTS tasks (
@@ -110,9 +111,49 @@ SCHEMA_V1 = [
     )""",
 ]
 
+# v2: ajan modu icin tur kayitlari (her tur: karar + arac cagrisi + sonuc). Mevcut tablolara dokunmaz.
+SCHEMA_V2 = [
+    """CREATE TABLE IF NOT EXISTS task_agent_turns (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+        run_id INTEGER NOT NULL REFERENCES task_runs(id) ON DELETE CASCADE,
+        turn_no INTEGER NOT NULL,
+        thought TEXT NOT NULL DEFAULT '',
+        action TEXT NOT NULL,
+        args TEXT NOT NULL DEFAULT '{}',
+        observation TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'ok',
+        flagged INTEGER NOT NULL DEFAULT 0,
+        started_at REAL NOT NULL,
+        finished_at REAL,
+        UNIQUE(run_id, turn_no)
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_turns_run ON task_agent_turns(run_id, turn_no)",
+]
+
 # (surum, [sql, ...]) - yeni surum eklerken listeye EKLE, eskileri DEGISTIRME.
-MIGRATIONS = [(1, SCHEMA_V1)]
+MIGRATIONS = [(1, SCHEMA_V1), (2, SCHEMA_V2)]
 LATEST_VERSION = MIGRATIONS[-1][0]
+
+
+class _Holder:
+    """Bir iş parçacığının bağlantısını tutar. İş parçacığı ölünce thread-local boşalır, Holder yok edilir ve bağlantı
+    KAPANIR (__del__). Böylece Flask'ın her istek için açtığı kısa ömürlü thread'ler dosya tanıtıcısı sızdırmaz."""
+    __slots__ = ('conn', '__weakref__')
+
+    def __init__(self, conn):
+        self.conn = conn
+
+    def close(self):
+        c, self.conn = self.conn, None
+        if c is not None:
+            try:
+                c.close()
+            except Exception:
+                pass
+
+    def __del__(self):
+        self.close()
 
 
 class Database:
@@ -120,20 +161,18 @@ class Database:
         self.path = path
         self._local = threading.local()
         self._init_lock = threading.Lock()
-        self._all = []
-        self._all_lock = threading.Lock()
+        self._all = weakref.WeakSet()      # yalnızca izleme: güçlü referans TUTMAZ (sızıntıyı önler)
         self.migrated = False
 
     # ---------------- baglanti ----------------
     def conn(self):
-        c = getattr(self._local, 'c', None)
-        if c is None:
-            c = self._connect()
-            self._local.c = c
+        h = getattr(self._local, 'h', None)
+        if h is None or h.conn is None:
+            h = _Holder(self._connect())
+            self._local.h = h
             self._local.depth = 0
-            with self._all_lock:
-                self._all.append(c)
-        return c
+            self._all.add(h)
+        return h.conn
 
     def _connect(self):
         directory = os.path.dirname(self.path) or '.'
@@ -149,14 +188,18 @@ class Database:
             pass
         return c
 
+    def close_thread(self):
+        """Bu iş parçacığının bağlantısını hemen kapatır (kısa ömürlü thread'ler bitmeden önce çağırır)."""
+        h = getattr(self._local, 'h', None)
+        if h is not None:
+            h.close()
+            self._local.h = None
+            self._local.depth = 0
+
     def close_all(self):
-        with self._all_lock:
-            conns, self._all = self._all, []
-        for c in conns:
-            try:
-                c.close()
-            except Exception:
-                pass
+        for h in list(self._all):
+            h.close()
+        self._all = weakref.WeakSet()
         self._local = threading.local()
 
     # ---------------- islem ----------------

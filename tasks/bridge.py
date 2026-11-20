@@ -108,7 +108,7 @@ class AppBridge:
 
     def _call_model(self, model, messages, max_tokens, timeout, deadline, purpose):
         a = self.a
-        gorev = 'sohbet' if purpose in ('queries', 'condition') else 'analiz'
+        gorev = {'queries': 'sohbet', 'condition': 'sohbet', 'agent': 'yazisma'}.get(purpose, 'analiz')
         params = dict(a.get_generation_params(model, gorev, int(max_tokens)))
         payload = {'model': model, 'messages': messages, 'stream': False}
         payload.update(params)

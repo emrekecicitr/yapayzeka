@@ -157,7 +157,20 @@ for _n, _m in (('run', 'run_now'), ('pause', 'pause'), ('resume', 'resume'), ('r
 
 
 # ------------------------------------------------------------------ gecmis ve adimlar
-def _public_step(st):
+def _public_turn(t):
+    args = {}
+    for k, v in (t.get('args') or {}).items():
+        if str(k).startswith('_'):
+            continue                                   # ic alanlar (kaynak kaydi) istemciye gitmez
+        args[k] = util.truncate(v, 220) if isinstance(v, str) else v
+    return {'turn_no': t['turn_no'], 'action': t['action'], 'args': args,
+            'thought': util.truncate(t.get('thought') or '', 400),
+            'observation_preview': util.truncate(t.get('observation') or '', 900),
+            'status': t['status'], 'flagged': int(t.get('flagged') or 0),
+            'started_at': _iso(t.get('started_at')), 'finished_at': _iso(t.get('finished_at'))}
+
+
+def _public_step(st, turns=None):
     out = st.get('output')
     preview = None
     if st['kind'] == 'search' and out:
@@ -167,11 +180,27 @@ def _public_step(st):
             preview += f", {d['flagged']} şüpheli satır filtrelendi"
     elif st['kind'] == 'plan' and out:
         preview = 'Plan oluşturuldu'
+    elif st['kind'] == 'agent' and out:
+        d = jload(out, {}) or {}
+        preview = util.truncate(d.get('findings') or '', 1200)
+        if d.get('stop_reason') and d['stop_reason'] != 'finish':
+            preview += {'budget': '\n\nAjan tur sınırına ulaştı.', 'stagnation': '\n\nAjan yeni bir ilerleme kaydedemedi.',
+                        'invalid_output': '\n\nAjanın yanıtları kullanılabilir gelmedi.'}.get(d['stop_reason'], '')
+        if d.get('flagged'):
+            preview += f"\n\n{d['flagged']} şüpheli satır filtrelendi."
     elif out:
         preview = util.truncate(out, 1200)
-    return {'step_no': st['step_no'], 'kind': st['kind'], 'name': st['name'], 'status': st['status'],
-            'error': st.get('error'), 'attempts': st.get('attempts'), 'output_preview': preview,
-            'started_at': _iso(st.get('started_at')), 'finished_at': _iso(st.get('finished_at'))}
+    res = {'step_no': st['step_no'], 'kind': st['kind'], 'name': st['name'], 'status': st['status'],
+           'error': st.get('error'), 'attempts': st.get('attempts'), 'output_preview': preview,
+           'started_at': _iso(st.get('started_at')), 'finished_at': _iso(st.get('finished_at'))}
+    if st['kind'] == 'agent':
+        res['turns'] = [_public_turn(t) for t in (turns or [])]
+    return res
+
+
+def _steps_public(runs, run_id, steps):
+    turns = runs.agent_turns(run_id) if any(x['kind'] == 'agent' for x in steps) else []
+    return [_public_step(x, turns) for x in steps]
 
 
 def _public_run(r):
@@ -203,7 +232,7 @@ def history_item(task_id, run_id):
     out = _public_run(run)
     out['result'] = run.get('result')
     out['sources'] = run.get('sources') or []
-    out['steps'] = [_public_step(x) for x in run['steps']]
+    out['steps'] = _steps_public(s['runs'], run_id, run['steps'])
     return _ok(out)
 
 
@@ -221,7 +250,7 @@ def steps(task_id):
     run = s['runs'].run_with_steps(task_id, rid)
     if not run:
         raise NotFound('Çalıştırma kaydı bulunamadı.')
-    return _ok({'run_id': rid, 'run_status': run['status'], 'steps': [_public_step(x) for x in run['steps']]})
+    return _ok({'run_id': rid, 'run_status': run['status'], 'steps': _steps_public(s['runs'], rid, run['steps'])})
 
 
 # ------------------------------------------------------------------ bildirimler
@@ -279,6 +308,8 @@ def meta():
         'models': s['bridge'].models(),
         'timezones': TIMEZONES,
         'default_timezone': config.DEFAULT_TIMEZONE,
+        'agent': {'budgets': [{'id': b, 'turns': config.AGENT_TURNS[b], 'searches': config.AGENT_SEARCHES[b],
+                               'reads': config.AGENT_READS[b]} for b in config.AGENT_BUDGETS]},
         'limits': {'title': config.MAX_TITLE_CHARS, 'description': config.MAX_DESCRIPTION_CHARS,
                    'min_interval_minutes': config.MIN_INTERVAL_MINUTES,
                    'min_check_interval_minutes': config.MIN_CHECK_INTERVAL_MINUTES,

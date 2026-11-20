@@ -123,3 +123,31 @@ class Runs:
         if n == 0:
             return 0
         return int(d * 100 / n)
+
+    # ---------------- ajan turlari ----------------
+    def agent_turns(self, run_id):
+        rows = self.db.all('SELECT * FROM task_agent_turns WHERE run_id=? ORDER BY turn_no', (run_id,))
+        for r in rows:
+            r['args'] = jload(r.get('args'), {}) or {}
+        return rows
+
+    def add_agent_turn(self, task_id, run_id, turn_no, thought, action, args, observation, status, flagged, started_at):
+        """Tur, karar + arac sonucu TAMAMLANINCA tek kayit olarak yazilir. Ayni tur ikinci kez yazilamaz (UNIQUE)."""
+        import sqlite3
+        try:
+            self.db.execute(
+                'INSERT INTO task_agent_turns(task_id, run_id, turn_no, thought, action, args, observation, status, '
+                'flagged, started_at, finished_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+                (task_id, run_id, int(turn_no), str(thought or '')[:600], str(action)[:40], jdump(args or {}),
+                 str(observation or '')[:config.AGENT_OBS_CHARS + 600], str(status)[:20], int(flagged or 0),
+                 started_at, self.clock()))
+            return True
+        except sqlite3.IntegrityError:
+            return False
+
+    def previous_results(self, task_id, exclude_run_id, limit=2):
+        """Ayni gorevin onceki BASARILI calistirma sonuclari (gorevler arasi sizinti yok)."""
+        return self.db.all(
+            "SELECT id, run_no, finished_at, result FROM task_runs WHERE task_id=? AND status='succeeded' "
+            "AND id!=? AND result IS NOT NULL AND result!='' ORDER BY id DESC LIMIT ?",
+            (task_id, exclude_run_id, int(limit)))

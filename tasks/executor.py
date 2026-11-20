@@ -16,6 +16,7 @@ import json
 import time
 
 from . import config, conditions, util
+from .agent import AgentError, AgentRunner
 from .bridge import LLMError
 
 ALLOWED_STEP_KINDS = ('search', 'analyze', 'compare', 'classify', 'report')
@@ -231,6 +232,10 @@ class Executor:
     # ------------------------------------------------------------------
     def _initial_steps(self, task, opts):
         internet = bool(task['internet_search_enabled'])
+        if opts.get('agent_mode'):
+            # Ajan modu: arac kullanan dongu + nihai rapor. Plan adimlarini model degil sistem olusturur.
+            return [{'kind': 'agent', 'name': 'Ajan araçları kullanarak araştırıyor'},
+                    {'kind': 'report', 'name': 'Nihai rapor hazırlanıyor'}]
         if task['task_type'] == 'multistep':
             return [{'kind': 'plan', 'name': 'Araştırma ve çalışma planı oluşturuluyor'}]
         steps = []
@@ -256,6 +261,8 @@ class Executor:
                 out = self._step_plan(ctx, step)
             elif kind == 'search':
                 out = self._step_search(ctx, step)
+            elif kind == 'agent':
+                out = self._step_agent(ctx, step)
             elif kind == 'report':
                 out = self._step_report(ctx, step)
             else:
@@ -396,6 +403,46 @@ class Executor:
         return fallback
 
     # ------------------------------------------------------------------
+    # adim: ajan (arac kullanan dongu)
+    # ------------------------------------------------------------------
+    def _step_agent(self, ctx, step):
+        tid, owner = ctx.task['id'], ctx.owner
+
+        def progress(text, pct):
+            self.mgr.set_progress(tid, owner, text, pct)
+        runner = AgentRunner(self.bridge, self.runs, self.clock,
+                             checkpoint=lambda: self._checkpoint(tid, owner, ctx.deadline),
+                             progress=progress, cache_get=self._cache_get, cache_put=self._cache_put)
+        try:
+            out = runner.run(ctx.task, ctx.run, ctx.opts, ctx.deadline, trigger_context=ctx.trigger_context)
+        except AgentError as e:
+            raise StepFailure(e.message, e.retriable)
+        finally:
+            if runner.model:
+                ctx.model_used = runner.model
+                self.runs.set_model_used(ctx.run['id'], runner.model)
+        ctx.flagged_any = ctx.flagged_any or bool(out.get('flagged'))
+        return json.dumps(out, ensure_ascii=False)
+
+    @staticmethod
+    def _format_agent_output(raw):
+        try:
+            d = json.loads(raw)
+        except ValueError:
+            return raw
+        warn = {'budget': 'UYARI: ajan tur sınırına ulaştı; bulgular eksik olabilir.',
+                'stagnation': 'UYARI: ajan yeni bir ilerleme kaydedemedi; bulgular eksik olabilir.',
+                'invalid_output': 'UYARI: ajanın yanıtları kullanılabilir gelmedi; bulgular eksik olabilir.'}.get(d.get('stop_reason'), '')
+        parts = [f"Ajan bulguları (güven: {d.get('confidence', 'orta')}):", d.get('findings', '')]
+        if warn:
+            parts.append(warn)
+        if d.get('sources'):
+            parts.append('Kaynak listesi: ' + '; '.join(f"[{x['n']}] {x['title']}" for x in d['sources']))
+        if d.get('digests'):
+            parts.append('Kanıt özetleri:\n' + '\n'.join('- ' + x for x in d['digests']))
+        return '\n'.join(parts)
+
+    # ------------------------------------------------------------------
     # adim: analiz / karsilastirma / siniflandirma
     # ------------------------------------------------------------------
     def _step_analyze(self, ctx, step):
@@ -421,6 +468,8 @@ class Executor:
         sys_text = (TASK_RULES + ' Şimdi kullanıcıya sunulacak NİHAİ çıktıyı yaz. '
                     + _FORMAT_HINT.get(fmt, _FORMAT_HINT['rapor']) + ' ' + _LENGTH_HINT.get(length, '')
                     + ' Kaynak adreslerini metne yazma; kaynak listesi sistem tarafından eklenir.'
+                    + (' Önceki adımdaki ajan bulgularında geçen [n] kaynak numaraları, sistemin ekleyeceği "Kaynaklar" listesindeki '
+                       'numaralarla aynıdır; atıfları koru. Ajan bulgularında olmayan olguyu ekleme.' if ctx.opts.get('agent_mode') else "")
                     + (' Arama verisi eksik veya filtrelendiyse bunu açıkça belirt.' if ctx.flagged_any else ''))
         if memory:
             sys_text += '\n' + memory
@@ -477,6 +526,9 @@ class Executor:
                 label = 'WEB_VERISI'
             elif s['kind'] == 'plan':
                 continue
+            elif s['kind'] == 'agent':
+                out = self._format_agent_output(out)
+                label = 'ADIM_CIKTISI'
             else:
                 label = 'ADIM_CIKTISI'
             blocks.append((s, label, out))
@@ -499,6 +551,17 @@ class Executor:
     def _collect_sources(self, steps):
         seen, out = set(), []
         for s in steps:
+            if s['kind'] == 'agent' and s['status'] == 'completed' and s.get('output'):
+                try:
+                    d = json.loads(s['output'])
+                except ValueError:
+                    continue
+                for src in d.get('sources') or []:
+                    url = (src or {}).get('url') or ''
+                    if url.startswith(('http://', 'https://')) and url not in seen:
+                        seen.add(url)
+                        out.append({'title': util.truncate(util.strip_dashes((src or {}).get('title') or url), 160), 'url': url})
+                continue
             if s['kind'] == 'search' and s['status'] == 'completed' and s.get('output'):
                 try:
                     d = json.loads(s['output'])
