@@ -14,7 +14,7 @@ from urllib.parse import urlparse
 
 from flask import Blueprint, jsonify, request
 
-from . import config, util
+from . import config, review as review_mod, util
 from .manager import TaskError, ValidationFailed, NotFound, _iso
 from .storage import jload
 
@@ -188,6 +188,8 @@ def _public_step(st, turns=None):
                         'invalid_output': '\n\nAjanın yanıtları kullanılabilir gelmedi.'}.get(d['stop_reason'], '')
         if d.get('flagged'):
             preview += f"\n\n{d['flagged']} şüpheli satır filtrelendi."
+    elif st['kind'] == 'review' and out:
+        preview = review_mod.summary_text(jload(out, {}) or {})
     elif out:
         preview = util.truncate(out, 1200)
     res = {'step_no': st['step_no'], 'kind': st['kind'], 'name': st['name'], 'status': st['status'],
@@ -195,7 +197,24 @@ def _public_step(st, turns=None):
            'started_at': _iso(st.get('started_at')), 'finished_at': _iso(st.get('finished_at'))}
     if st['kind'] == 'agent':
         res['turns'] = [_public_turn(t) for t in (turns or [])]
+    if st['kind'] == 'review' and out:
+        res['review'] = _public_review(jload(out, {}) or {})
     return res
+
+
+def _public_review(d):
+    """Denetim ciktisinin istemciye giden ozeti (rapor metni dahil DEGIL: yalnizca bulgular)."""
+    return {
+        'status': d.get('status'), 'status_label': review_mod.STATUS_LABEL.get(d.get('status'), ''),
+        'note': util.truncate(d.get('note') or '', 300), 'score_before': d.get('score_before'), 'score_after': d.get('score_after'),
+        'revised': bool(d.get('revised')), 'links_removed': int(d.get('links_removed') or 0),
+        'issues': [review_mod.public_issue(i) for i in (d.get('issues') or [])][:12],
+        'unresolved': [review_mod.public_issue(i) for i in (d.get('unresolved') or [])][:config.REVIEW_NOTES_MAX],
+        'calc': [{'expression': util.truncate(str(c.get('expression')), 120), 'claimed': c.get('claimed'),
+                  'actual': c.get('actual'), 'ok': bool(c.get('ok'))} for c in (d.get('calc') or [])][:config.REVIEW_MAX_CALC],
+        'verify_queries': [util.truncate(str(q), 200) for q in (d.get('verify_queries') or [])][:config.REVIEW_MAX_VERIFY],
+        'new_sources': [{'title': util.truncate(str(x.get('title')), 160), 'url': x.get('url')} for x in (d.get('new_sources') or [])][:config.AGENT_MAX_SOURCES],
+    }
 
 
 def _steps_public(runs, run_id, steps):

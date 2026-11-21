@@ -84,6 +84,16 @@ AGENT_REPAIR_PER_TURN = 2       # aynı tur içinde geçersiz çıktıyı düzel
 AGENT_MAX_SOURCES = 12
 AGENT_CALC_EXPR_CHARS = 200
 
+# Kendini degerlendirme (denetci adimi). Tum sinirlar sabittir: en fazla 2 denetim + 1 duzeltme + 2 dogrulama aramasi.
+REVIEW_MAX_ISSUES = 8
+REVIEW_MAX_VERIFY = 2           # denetcinin isteyebilecegi en cok ek dogrulama aramasi
+REVIEW_MAX_CALC = 6             # sistemin yeniden hesaplayacagi en cok iddia
+REVIEW_MAX_REPAIR = 1           # gecersiz denetci ciktisi icin duzeltme hakki (cagri basina)
+REVIEW_DRAFT_CHARS = 5500
+REVIEW_EVIDENCE_CHARS = 4500
+REVIEW_CRITIC_TOKENS = 1200
+REVIEW_NOTES_MAX = 5
+
 TASK_TYPES = ('once', 'recurring', 'conditional', 'multistep')
 STATUSES = ('pending', 'scheduled', 'running', 'paused', 'completed',
             'failed', 'cancelled', 'awaiting_approval')

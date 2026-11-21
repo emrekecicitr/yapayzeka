@@ -13,11 +13,13 @@ Akis
 """
 import hashlib
 import json
+import logging
 import time
 
-from . import config, conditions, util
+from . import config, conditions, review, util
 from .agent import AgentError, AgentRunner
 from .bridge import LLMError
+from .tools import description_urls, norm_url
 
 ALLOWED_STEP_KINDS = ('search', 'analyze', 'compare', 'classify', 'report')
 
@@ -219,7 +221,19 @@ class Executor:
         report = next((s for s in reversed(steps) if s['kind'] == 'report' and s['status'] == 'completed'), None)
         if report is None or not (report.get('output') or '').strip():
             raise StepFailure('Rapor adımı sonuç üretmedi.', True)
-        result = self._compose_result(report['output'], steps, opts)
+        rv = None
+        rstep = next((x for x in reversed(steps) if x['kind'] == 'review' and x['status'] == 'completed'), None)
+        if rstep and rstep.get('output'):
+            try:
+                rv = json.loads(rstep['output'])
+            except ValueError:
+                rv = None
+        base = rv['report'] if rv and (rv.get('report') or '').strip() else report['output']
+        if rv is not None or rstep is not None:       # denetimli gorev: izin disi baglantilar her durumda kodla kaldirilir
+            allowed = {norm_url(x['url']).lower() for x in self._collect_sources(steps)}
+            allowed |= {norm_url(u).lower() for u in description_urls(task['title'] + ' ' + task['description'])}
+            base, _removed = review.guard_links(base, allowed)
+        result = self._compose_result(base, steps, opts, rv)
         sources = self._collect_sources(steps)
         self.runs.save_sources(rid, sources)
         self._checkpoint(tid, owner, deadline + 60)
@@ -232,17 +246,18 @@ class Executor:
     # ------------------------------------------------------------------
     def _initial_steps(self, task, opts):
         internet = bool(task['internet_search_enabled'])
+        tail = [{'kind': 'review', 'name': 'Kendini değerlendirme: rapor denetleniyor'}] if opts.get('self_review') else []
         if opts.get('agent_mode'):
             # Ajan modu: arac kullanan dongu + nihai rapor. Plan adimlarini model degil sistem olusturur.
             return [{'kind': 'agent', 'name': 'Ajan araçları kullanarak araştırıyor'},
-                    {'kind': 'report', 'name': 'Nihai rapor hazırlanıyor'}]
+                    {'kind': 'report', 'name': 'Nihai rapor hazırlanıyor'}] + tail
         if task['task_type'] == 'multistep':
             return [{'kind': 'plan', 'name': 'Araştırma ve çalışma planı oluşturuluyor'}]
         steps = []
         if internet:
             steps.append({'kind': 'search', 'name': 'Kaynaklar aranıyor', 'auto': True})
         steps.append({'kind': 'report', 'name': 'Rapor hazırlanıyor'})
-        return steps
+        return steps + tail
 
     def _publish_progress(self, ctx, steps):
         done = sum(1 for s in steps if s['status'] in ('completed', 'skipped'))
@@ -265,6 +280,8 @@ class Executor:
                 out = self._step_agent(ctx, step)
             elif kind == 'report':
                 out = self._step_report(ctx, step)
+            elif kind == 'review':
+                out = self._step_review(ctx, step)
             else:
                 out = self._step_analyze(ctx, step)
         except RunInterrupted:
@@ -312,6 +329,8 @@ class Executor:
         if not steps:
             steps = self._default_plan(task, internet)
         steps.append({'kind': 'report', 'name': 'Nihai rapor hazırlanıyor'})
+        if ctx.opts.get('self_review'):
+            steps.append({'kind': 'review', 'name': 'Kendini değerlendirme: rapor denetleniyor'})
         self.runs.append_steps(task['id'], ctx.run['id'], steps)
         return json.dumps([{'kind': s['kind'], 'name': s['name']} for s in steps], ensure_ascii=False)
 
@@ -481,6 +500,222 @@ class Executor:
         return text
 
     # ------------------------------------------------------------------
+    # adim: kendini degerlendirme (denetci)
+    # ------------------------------------------------------------------
+    # Akis: denetim (model + sistemin kod ile kontrolleri) -> sorun varsa [ek dogrulama aramasi] -> duzeltme ->
+    # duzeltmenin yeniden denetimi. Her faz bir kez calisir ve spec icinde kalici yazilir (kesintide kaldigi fazdan surer).
+    # En cok 5 model cagrisi (2 denetim + 2 duzeltme hakki + 1 duzeltme) ve 2 arama. Denetim bir IYILESTIRMEDIR:
+    # modelde/araclarda hata olursa iyi bir rapor kaybolmaz, taslak notla birlikte teslim edilir.
+    def _step_review(self, ctx, step):
+        steps = self.runs.steps(ctx.run['id'])
+        rep = next((x for x in reversed(steps) if x['kind'] == 'report' and x['status'] == 'completed'), None)
+        draft = (rep or {}).get('output') or ''
+        if not draft.strip():
+            return json.dumps(self._review_out('unchecked', '', note='Denetlenecek rapor bulunamadı.'), ensure_ascii=False)
+        try:
+            out = self._review_core(ctx, step, steps, draft)
+        except (RunInterrupted, StepFailure, LLMError):
+            raise
+        except Exception as e:  # noqa: BLE001 - denetim bir iyilestirmedir: hata iyi bir raporu yok etmemeli
+            logging.getLogger('tasks').error('denetim hatasi (gorev %s): %s: %s', ctx.task['id'], type(e).__name__, util.redact(e))
+            out = self._review_degraded(ctx, step, steps, draft, f'beklenmedik hata ({type(e).__name__})')
+        dumped = json.dumps(out, ensure_ascii=False)
+        if len(dumped) > config.MAX_RESULT_CHARS - 2000:     # kesilirse JSON bozulur: rapor alanini birakip taslaga dus
+            out['report'] = ''
+            dumped = json.dumps(out, ensure_ascii=False)
+        return dumped
+
+    @staticmethod
+    def _review_out(status, final, note='', **kw):
+        out = {'status': status, 'note': note, 'score_before': None, 'score_after': None, 'issues': [], 'unresolved': [],
+               'calc': [], 'verify_queries': [], 'new_sources': [], 'links_removed': 0, 'revised': False, 'report': final}
+        out.update(kw)
+        return out
+
+    def _review_degraded(self, ctx, step, steps, draft, note):
+        """Denetim hic calismadiysa bile kodla yapilan kontroller (atif, baglanti) uygulanir."""
+        known = self._collect_sources([x for x in steps if x['step_no'] < step['step_no']])
+        desc = {norm_url(u).lower() for u in description_urls(ctx.task['title'] + ' ' + ctx.task['description'])}
+        allowed = {norm_url(x['url']).lower() for x in known} | desc
+        det = review.det_citations(draft, len(known))
+        final, removed = review.guard_links(draft, allowed)
+        return self._review_out('unchecked', final, note=note, issues=[review.public_issue(i) for i in det],
+                                unresolved=[review.public_issue(i) for i in det][:config.REVIEW_NOTES_MAX], links_removed=removed)
+
+    def _evidence_text(self, blocks, cap):
+        if not blocks:
+            return '(Kanıt yok.)'
+        per = max(500, cap // len(blocks))
+        remaining, out = cap, []
+        for s, label, text in blocks:
+            share = per * 2 if label == 'WEB_VERISI' and len(blocks) > 1 else per
+            cut, _ = util.sanitize_untrusted(text, max(300, min(share, remaining)))
+            remaining = max(0, remaining - len(cut))
+            out.append(f"[{s['name']}]\n{cut}")
+        return '\n\n'.join(out)
+
+    def _review_llm(self, ctx, msgs, max_tokens, purpose):
+        """(sonuc, neden). Gecici hata ve yeniden deneme hakki varsa istisna firlatir (adim geri cekilmeyle yeniden denenir);
+        hak bittiyse ya da kalici hataysa None doner ve denetim kontrollu sekilde atlanir."""
+        try:
+            return self._llm(ctx, msgs, max_tokens, purpose), ''
+        except LLMError as e:
+            if e.retriable and int(ctx.task.get('retry_count') or 0) < config.MAX_RETRIES:
+                raise
+            return None, e.user_message()
+
+    def _critique(self, ctx, draft, sources, evidence):
+        task = ctx.task
+        budget = int(self.bridge.input_char_budget(task['selected_model']) * 0.8) - len(review.CRITIC_SYSTEM)
+        user = review.build_context(task['title'] + '\n' + task['description'], sources, draft, evidence, budget)
+        msgs = [{'role': 'system', 'content': review.CRITIC_SYSTEM}, {'role': 'user', 'content': user}]
+        for _ in range(1 + config.REVIEW_MAX_REPAIR):
+            r, why = self._review_llm(ctx, msgs, config.REVIEW_CRITIC_TOKENS, 'critic')
+            if r is None:
+                return {'parsed': None, 'reason': why}
+            parsed, err = review.parse_critic(r.text)
+            if parsed is not None:
+                return {'parsed': parsed, 'reason': ''}
+            msgs = msgs + [{'role': 'assistant', 'content': util.truncate(r.text, 400)},
+                           {'role': 'user', 'content': f'Yanıtın geçersizdi: {err} Yalnızca belirtilen JSON biçimiyle yanıtla.'}]
+        return {'parsed': None, 'reason': 'Denetçi anlaşılır bir yanıt üretmedi.'}
+
+    def _revise(self, ctx, draft, sources, issues, calc, evidence):
+        task = ctx.task
+        fmt = ctx.opts.get('output_format', 'rapor')
+        length = ctx.opts.get('output_length', 'orta')
+        hint = _FORMAT_HINT.get(fmt, _FORMAT_HINT['rapor']) + ' ' + _LENGTH_HINT.get(length, '')
+        system = review.REVISE_SYSTEM.replace('{format_hint}', hint)
+        budget = int(self.bridge.input_char_budget(task['selected_model']) * 0.8) - len(system)
+        extra = review.issues_block(issues[:config.REVIEW_MAX_ISSUES], calc)
+        user = review.build_context(task['title'] + '\n' + task['description'], sources, draft, evidence, budget, extra=extra)
+        r, why = self._review_llm(ctx, [{'role': 'system', 'content': system}, {'role': 'user', 'content': user}],
+                                  _LENGTH_TOKENS.get(length, 1400), 'revise')
+        if r is None:
+            return {'text': None, 'reason': why}
+        text = util.strip_dashes(review.strip_fence(r.text))
+        if len(text) < max(30, int(0.35 * len(draft))):
+            return {'text': None, 'reason': 'Düzeltilmiş rapor çok kısa olduğu için kabul edilmedi.'}
+        return {'text': text[:config.MAX_RESULT_CHARS // 2], 'reason': ''}      # adim cikti JSON'u gecerli kalsin
+
+    def _verify(self, ctx, queries):
+        """Denetcinin istedigi sinirli ek aramalar (en cok 2). Asla istisna firlatmaz."""
+        depth = ctx.opts.get('research_depth', 'normal')
+        evid, srcs = [], []
+        for q in queries[:config.REVIEW_MAX_VERIFY]:
+            try:
+                key = 'review|' + ' '.join(q.lower().split()) + '|' + depth
+                data = self._cache_get(key)
+                if data is None:
+                    res = self.bridge.search([q], depth, q)
+                    data = {'context': res.get('context') or '', 'sources': res.get('sources') or []}
+                    if data['context']:
+                        self._cache_put(key, data)
+            except Exception:  # noqa: BLE001
+                continue
+            if not data.get('context'):
+                continue
+            cut, _ = util.sanitize_untrusted(data['context'], 1500)
+            evid.append(f'[Doğrulama araması: {q}]\n{cut}')
+            for sx in data.get('sources') or []:
+                url = (sx or {}).get('url') or ''
+                if url.startswith(('http://', 'https://')):
+                    srcs.append({'title': (sx or {}).get('title') or url, 'url': url})
+        return {'queries': list(queries), 'evidence': '\n\n'.join(evid), 'sources': srcs}
+
+    @staticmethod
+    def _review_issues(parsed, text, sources, allowed):
+        issues = list(parsed['issues']) if parsed else []
+        det = review.det_citations(text, len(sources)) + review.det_links(text, allowed)
+        calc = review.det_calc(parsed['calc_checks'], text) if parsed else []
+        return review.merge_issues(issues, det, review.calc_issues(calc)), calc
+
+    def _review_core(self, ctx, step, steps, draft):
+        task, tid = ctx.task, ctx.task['id']
+        internet = bool(task['internet_search_enabled'])
+        known = self._collect_sources([x for x in steps if x['step_no'] < step['step_no']])
+        desc = {norm_url(u).lower() for u in description_urls(task['title'] + ' ' + task['description'])}
+        evidence = self._evidence_text(self._prior_blocks(ctx, steps, step['step_no'], skip_kinds=('report', 'review')),
+                                       config.REVIEW_EVIDENCE_CHARS)
+        spec = dict(step.get('spec') or {})
+        st = dict(spec.get('rv') or {})
+
+        def save():
+            spec['rv'] = st
+            self.runs.step_update_spec(step['id'], spec)
+
+        def prog(text):
+            self.mgr.set_progress(tid, ctx.owner, text)
+
+        def allowed_for(srcs):
+            return {norm_url(x['url']).lower() for x in srcs} | desc
+
+        def calc_pub(calc):
+            return [{'expression': c['expression'], 'claimed': c['claimed'], 'actual': c['actual'], 'ok': c['ok']}
+                    for c in calc if c['checked']]
+
+        # ---- faz 1: denetim
+        prog('Denetim: rapor inceleniyor')
+        if 'c1' not in st:
+            st['c1'] = self._critique(ctx, draft, known, evidence)
+            save()
+        parsed1 = st['c1'].get('parsed')
+        issues1, calc1 = self._review_issues(parsed1, draft, known, allowed_for(known))
+        # Baglantilar kodla kaldirilir: yalnizca bunun icin duzeltme cagrisi harcanmaz.
+        todo = [i for i in review.blocking(issues1) if i['type'] != 'link']
+        score1 = parsed1['score'] if parsed1 else None
+        pub1 = [review.public_issue(i) for i in issues1]
+        if not todo:
+            final, removed = review.guard_links(draft, allowed_for(known))
+            if parsed1 is None:
+                return self._review_out('unchecked', final, note=st['c1'].get('reason') or 'Denetçi yanıt vermedi.',
+                                        issues=pub1, links_removed=removed)
+            return self._review_out('ok', final, score_before=score1, issues=pub1, calc=calc_pub(calc1), links_removed=removed)
+        # ---- faz 2: sinirli ek dogrulama
+        if 'verify' not in st:
+            qs = review.verify_queries(todo) if internet else []
+            if qs:
+                prog('Denetim: ek doğrulama araması yapılıyor')
+            st['verify'] = self._verify(ctx, qs) if qs else {'queries': [], 'evidence': '', 'sources': []}
+            save()
+        v = st['verify']
+        new_sources, seen = [], {x['url'] for x in known}
+        for sx in v.get('sources') or []:
+            if sx['url'] not in seen and len(known) + len(new_sources) < config.AGENT_MAX_SOURCES:
+                seen.add(sx['url'])
+                new_sources.append({'title': util.truncate(util.strip_dashes(sx.get('title') or sx['url']), 160), 'url': sx['url']})
+        sources_all = known + new_sources
+        evidence2 = (evidence + '\n\n' + v['evidence']).strip() if v.get('evidence') else evidence
+        # ---- faz 3: duzeltme
+        if 'revised' not in st:
+            prog('Denetim: rapor düzeltiliyor')
+            st['revised'] = self._revise(ctx, draft, sources_all, todo, calc1, evidence2)
+            save()
+        rev = st['revised']
+        if not rev.get('text'):
+            final, removed = review.guard_links(draft, allowed_for(known))
+            return self._review_out('skipped', final, note=rev.get('reason') or 'Düzeltme uygulanamadı.', score_before=score1,
+                                    issues=pub1, unresolved=[review.public_issue(i) for i in todo][:config.REVIEW_NOTES_MAX],
+                                    calc=calc_pub(calc1), verify_queries=v['queries'], links_removed=removed)
+        revised = rev['text']
+        # ---- faz 4: duzeltmenin yeniden denetimi
+        if 'c2' not in st:
+            prog('Denetim: düzeltme doğrulanıyor')
+            st['c2'] = self._critique(ctx, revised, sources_all, evidence2)
+            save()
+        parsed2 = st['c2'].get('parsed')
+        issues2, _ = self._review_issues(parsed2, revised, sources_all, allowed_for(sources_all))
+        unresolved = [i for i in review.blocking(issues2) if i['type'] != 'link']
+        if parsed2 is None:
+            unresolved.append(review.sys_issue('unclear', 'orta', 'Yeniden denetim', review.SYSTEM_NOTE))
+        final, removed = review.guard_links(revised, allowed_for(sources_all))
+        return self._review_out('revised' if not unresolved else 'revised_with_notes', final, score_before=score1,
+                                score_after=parsed2['score'] if parsed2 else None, issues=pub1,
+                                unresolved=[review.public_issue(i) for i in unresolved][:config.REVIEW_NOTES_MAX],
+                                calc=calc_pub(calc1), verify_queries=v['queries'], new_sources=new_sources,
+                                links_removed=removed, revised=True)
+
+    # ------------------------------------------------------------------
     def _llm(self, ctx, msgs, max_tokens, purpose):
         """Model cagrisi; 'cok buyuk' hatasinda baglami kucultup bir kez daha dener."""
         try:
@@ -501,18 +736,9 @@ class Executor:
     # ------------------------------------------------------------------
     # gorev baglami (kontrollu): onceki adim ciktilari + arastirma verisi
     # ------------------------------------------------------------------
-    def _build_context_block(self, ctx, step, budget_scale):
-        task = ctx.task
-        steps = self.runs.steps(ctx.run['id'])
-        max_chars = int(self.bridge.input_char_budget(task['selected_model']) * budget_scale)
-        desc, _ = util.sanitize_untrusted(task['title'] + '\n' + task['description'], 3000)
-        parts = [f"GÖREV TANIMI (kullanıcı amacı):\n<<<GOREV\n{desc}\n>>>",
-                 f'Bugünün tarihi: {self.bridge.now_text()}']
-        if ctx.trigger_context:
-            tc, _ = util.sanitize_untrusted(ctx.trigger_context, 1500)
-            parts.append(f'TETİKLEYEN KOŞUL (veri):\n<<<ADIM_CIKTISI\n{tc}\n>>>')
-        used = sum(len(p) for p in parts)
-        prior = [s for s in steps if s['status'] == 'completed' and s['step_no'] < step['step_no']]
+    def _prior_blocks(self, ctx, steps, step_no, skip_kinds=()):
+        """Tamamlanmis onceki adimlarin ciktilari: [(adim, etiket, metin)]."""
+        prior = [x for x in steps if x['status'] == 'completed' and x['step_no'] < step_no and x['kind'] not in skip_kinds]
         blocks = []
         for s in prior:
             out = s.get('output') or ''
@@ -524,7 +750,7 @@ class Executor:
                 except ValueError:
                     pass
                 label = 'WEB_VERISI'
-            elif s['kind'] == 'plan':
+            elif s['kind'] in ('plan', 'review'):
                 continue
             elif s['kind'] == 'agent':
                 out = self._format_agent_output(out)
@@ -532,6 +758,20 @@ class Executor:
             else:
                 label = 'ADIM_CIKTISI'
             blocks.append((s, label, out))
+        return blocks
+
+    def _build_context_block(self, ctx, step, budget_scale):
+        task = ctx.task
+        steps = self.runs.steps(ctx.run['id'])
+        max_chars = int(self.bridge.input_char_budget(task['selected_model']) * budget_scale)
+        desc, _ = util.sanitize_untrusted(task['title'] + '\n' + task['description'], 3000)
+        parts = [f"GÖREV TANIMI (kullanıcı amacı):\n<<<GOREV\n{desc}\n>>>",
+                 f'Bugünün tarihi: {self.bridge.now_text()}']
+        if ctx.trigger_context:
+            tc, _ = util.sanitize_untrusted(ctx.trigger_context, 1500)
+            parts.append(f'TETİKLEYEN KOŞUL (veri):\n<<<ADIM_CIKTISI\n{tc}\n>>>')
+        used = sum(len(p) for p in parts)
+        blocks = self._prior_blocks(ctx, steps, step['step_no'])
         remaining = max(1200, max_chars - used)
         if blocks:
             per = max(600, remaining // len(blocks))
@@ -562,6 +802,17 @@ class Executor:
                         seen.add(url)
                         out.append({'title': util.truncate(util.strip_dashes((src or {}).get('title') or url), 160), 'url': url})
                 continue
+            if s['kind'] == 'review' and s['status'] == 'completed' and s.get('output'):
+                try:
+                    d = json.loads(s['output'])
+                except ValueError:
+                    continue
+                for src in d.get('new_sources') or []:
+                    url = (src or {}).get('url') or ''
+                    if url.startswith(('http://', 'https://')) and url not in seen:
+                        seen.add(url)
+                        out.append({'title': util.truncate(util.strip_dashes((src or {}).get('title') or url), 160), 'url': url})
+                continue
             if s['kind'] == 'search' and s['status'] == 'completed' and s.get('output'):
                 try:
                     d = json.loads(s['output'])
@@ -575,8 +826,11 @@ class Executor:
                                     'url': url})
         return out[:12]
 
-    def _compose_result(self, report_text, steps, opts):
+    def _compose_result(self, report_text, steps, opts, review_out=None):
         text = report_text.strip()
+        notes = review.format_notes(review_out)
+        if notes:
+            text += '\n\n' + notes
         sources = self._collect_sources(steps)
         if sources:
             text += '\n\n## Kaynaklar\n' + '\n'.join(f"{i}. {s['title']} ({s['url']})" for i, s in enumerate(sources, 1))

@@ -133,6 +133,7 @@ function cardHtml(t) {
   h += '<div class="tk-meta"><span class="tk-chip">' + esc(TYPE_LABEL[t.task_type] || t.task_type) + '</span>';
   h += '<span class="tk-chip">' + (t.is_active ? 'Aktif' : 'Pasif') + '</span>';
   if (t.options && t.options.agent_mode) h += '<span class="tk-chip tk-agent">Ajan</span>';
+  if (t.options && t.options.self_review) h += '<span class="tk-chip tk-agent">Denetimli</span>';
   if (t.schedule_text) h += '<span>' + esc(t.schedule_text) + '</span>';
   h += '</div>';
   h += '<div class="tk-times"><div><b>Son çalışma</b>' + esc(fmtTime(t.last_run_at, t.timezone)) + '</div><div><b>Sonraki çalışma</b>' + esc(running ? 'Çalışıyor' : fmtNext(t.next_run_at, t.timezone)) + '</div></div>';
@@ -245,7 +246,7 @@ function newF() {
     interval_min: 60, win_on: false, win_start: '09:00', win_end: '18:00', cron: '0 9 * * 1-5', check_min: 60,
     cond_type: 'news', cond_url: "", cond_keyword: "", cond_op: '>', cond_value: "", cond_query: "", cond_claim: "",
     model: "", internet: true, depth: 'normal', tz: (S.meta && S.meta.default_timezone) || 'Europe/Istanbul',
-    fmt: 'rapor', len: 'orta', notify: 'hepsi', approval: false, priority: 2, agent: false, agent_budget: 'normal' };
+    fmt: 'rapor', len: 'orta', notify: 'hepsi', approval: false, priority: 2, agent: false, agent_budget: 'normal', review: false };
 }
 function taskToF(t) {
   var f = newF(), c = t.schedule_config || {}, o = t.options || {};
@@ -253,7 +254,7 @@ function taskToF(t) {
   f.model = t.selected_model || ""; f.internet = !!t.internet_search_enabled; f.depth = o.research_depth || 'normal';
   f.fmt = o.output_format || 'rapor'; f.len = o.output_length || 'orta'; f.notify = o.notify_pref || 'hepsi';
   f.approval = !!t.approval_required; f.priority = t.task_priority;
-  f.agent = !!o.agent_mode; f.agent_budget = o.agent_budget || 'normal';
+  f.agent = !!o.agent_mode; f.agent_budget = o.agent_budget || 'normal'; f.review = !!o.self_review;
   if (t.task_type === 'conditional') {
     f.check_min = c.check_interval_minutes || 60;
     var k = o.condition || {}; f.cond_type = k.type || 'news'; f.cond_url = k.url || ""; f.cond_keyword = k.keyword || "";
@@ -333,6 +334,8 @@ function formHtml() {
   h += '<div class="tk-f"><label class="tk-sw"><input type="checkbox" id="f_agent"' + (F.agent ? ' checked' : "") + '><span>Ajan modu: yapay zekâ araçları kendisi seçsin</span></label>' +
     '<div class="tk-hint">Her adımda arama, sayfa okuma, hesaplama veya önceki sonuçları getirme araçlarından birini seçer, sonucu görüp devam eder. Yalnızca okur ve hesaplar, dış sistemde işlem yapmaz.</div></div>';
   h += '<div id="tkAgentOpts">' + (F.agent ? agentOptsHtml() : "") + '</div>';
+  h += '<div class="tk-f"><label class="tk-sw"><input type="checkbox" id="f_review"' + (F.review ? ' checked' : "") + '><span>Kendini değerlendirme: yapay zekâ raporunu denetlesin</span></label>' +
+    '<div class="tk-hint">Rapor yazıldıktan sonra kanıtsız iddia, hesap hatası, hatalı atıf ve uydurma bağlantıları arar; gerekirse sınırlı ek doğrulama araması yapıp raporu düzeltir ve düzeltmeyi yeniden denetler. Ek maliyet: en çok 5 model çağrısı ve 2 arama.</div></div>';
   h += '<details class="tk-adv"><summary>Gelişmiş ayarlar</summary><div style="padding-bottom:6px">';
   h += fld('f_tz', 'Saat dilimi', selHtml('f_tz', tzs.map(function (z) { return [z, z]; }), F.tz));
   h += '<div class="tk-row">' + fld('f_fmt', 'Çıktı biçimi', selHtml('f_fmt', [['rapor', 'Rapor'], ['ozet', 'Kısa özet'], ['madde', 'Madde listesi'], ['tablo', 'Tablo']], F.fmt)) +
@@ -359,7 +362,7 @@ function readF() {
   function c(id) { var e = $(id); return e ? e.checked : false; }
   F.title = v('f_title'); F.description = v('f_description'); F.model = v('f_model'); F.internet = c('f_internet');
   if ($('f_depth')) F.depth = v('f_depth');
-  F.agent = c('f_agent'); if ($('f_agent_budget')) F.agent_budget = v('f_agent_budget');
+  F.agent = c('f_agent'); if ($('f_agent_budget')) F.agent_budget = v('f_agent_budget'); F.review = c('f_review');
   F.tz = v('f_tz'); F.fmt = v('f_fmt'); F.len = v('f_len'); F.notify = v('f_notify'); F.priority = parseInt(v('f_priority'), 10) || 2; F.approval = c('f_approval');
   if ($('f_run_at')) F.run_at = v('f_run_at');
   if ($('f_freq')) F.freq = v('f_freq');
@@ -380,7 +383,7 @@ function buildPayload() {
     title: (F.title || "").trim(), description: (F.description || "").trim(), task_type: F.type, timezone: F.tz,
     selected_model: F.model || null, internet_search_enabled: !!F.internet, task_priority: F.priority, approval_required: !!F.approval,
     research_depth: F.depth, output_format: F.fmt, output_length: F.len, notify_pref: F.notify,
-    agent_mode: !!F.agent, agent_budget: F.agent_budget
+    agent_mode: !!F.agent, agent_budget: F.agent_budget, self_review: !!F.review
   };
   if (F.type === 'conditional') {
     p.schedule_config = { check_interval_minutes: F.check_min };
@@ -432,6 +435,30 @@ function saveForm() {
 }
 
 /* ---------- ayrıntı ---------- */
+var RV_TYPE = { unsupported: 'Kanıtsız iddia', missing: 'Eksik unsur', numeric: 'Sayısal tutarsızlık', contradiction: 'Çelişki', citation: 'Atıf hatası', link: 'Doğrulanamayan bağlantı', unclear: 'Belirsiz anlatım' };
+var RV_SEV = { yuksek: 'yüksek', orta: 'orta', dusuk: 'düşük' };
+function fmtNum(v) { var n = Number(v); return isFinite(n) ? String(+n.toFixed(6)) : esc(v); }
+function reviewHtml(r) {
+  var cls = (r.status === 'ok' || r.status === 'revised') ? 'ok' : (r.status === 'revised_with_notes' ? 'warn' : 'bad');
+  var h = '<div class="tk-rv rv-' + cls + '"><div class="rvh"><b>' + esc(r.status_label || r.status) + '</b>';
+  if (r.score_before) h += '<span class="tk-chip">Puan ' + r.score_before + '/5' + (r.score_after ? ', düzeltme sonrası ' + r.score_after + '/5' : "") + '</span>';
+  if (r.revised) h += '<span class="tk-chip">Rapor düzeltildi</span>';
+  h += '</div>';
+  if (r.note) h += '<div class="rvn">' + esc(r.note) + '</div>';
+  if (r.issues && r.issues.length) {
+    h += '<div class="rvs">Bulunan sorunlar</div><ul>' + r.issues.map(function (i) {
+      return '<li><span class="tk-chip st-' + (i.severity === 'yuksek' ? 'failed' : 'paused') + '">' + esc(RV_TYPE[i.type] || i.type) + ', ' + esc(RV_SEV[i.severity] || i.severity) + '</span> ' +
+        esc(i.note || i.claim) + (i.source === 'sistem' ? ' <i>(sistem doğruladı)</i>' : "") + '</li>'; }).join("") + '</ul>';
+  }
+  if (r.calc && r.calc.length) {
+    h += '<div class="rvs">Hesap doğrulaması (kodla yeniden hesaplandı)</div><ul>' + r.calc.map(function (c) {
+      return '<li>' + esc(c.expression) + ' = ' + fmtNum(c.actual) + ' (raporda ' + fmtNum(c.claimed) + '): ' + (c.ok ? 'tutarlı' : '<b>tutarsız</b>') + '</li>'; }).join("") + '</ul>';
+  }
+  if (r.verify_queries && r.verify_queries.length) h += '<div class="rvs">Ek doğrulama aramaları</div><ul>' + r.verify_queries.map(function (q) { return '<li>' + esc(q) + '</li>'; }).join("") + '</ul>';
+  if (r.links_removed) h += '<div class="rvn">' + r.links_removed + ' doğrulanamayan bağlantı kaldırıldı.</div>';
+  if (r.unresolved && r.unresolved.length) h += '<div class="rvs">Çözülemeyen noktalar (rapora not olarak eklendi)</div><ul>' + r.unresolved.map(function (i) { return '<li>' + esc(RV_TYPE[i.type] || i.type) + ': ' + esc(i.note || i.claim) + '</li>'; }).join("") + '</ul>';
+  return h + '</div>';
+}
 var ACT_LABEL = { search: 'Arama', read_page: 'Sayfa okuma', calculate: 'Hesaplama', recall: 'Önceki sonuçlar', finish: 'Bulguları yazma' };
 var TURN_STAT = { error: 'Hata', rejected: 'Reddedildi' };
 function turnsHtml(turns) {
@@ -452,6 +479,7 @@ function stepsHtml(steps) {
   return '<ol class="tk-steps">' + steps.map(function (s) {
     var h = '<li class="s-' + s.status + '"><div class="sh"><span class="si">' + (s.status === 'running' ? '<span class="tk-spin"></span>' : STEP_ICON[s.status] || '') + '</span><span style="flex:1;min-width:0">' + esc(s.step_no + '. ' + s.name) + '</span><span class="tk-chip">' + esc(STEP_LABEL[s.status] || s.status) + '</span></div>';
     if (s.error) h += '<div class="se">' + esc(s.error) + '</div>';
+    if (s.review) h += reviewHtml(s.review);
     if (s.turns && s.turns.length) h += '<details open><summary>Ajan turları (' + s.turns.length + ')</summary>' + turnsHtml(s.turns) + '</details>';
     if (s.output_preview) h += '<details><summary>Adım çıktısı</summary><div class="tk-md" style="margin-top:6px">' + mdSafe(s.output_preview) + '</div></details>';
     return h + '</li>';
@@ -484,6 +512,7 @@ function renderDetail() {
     '<dt>Çalışma sayısı</dt><dd>' + t.execution_count + (t.retry_count ? ' (yeniden deneme: ' + t.retry_count + ')' : "") + '</dd>' +
     '<dt>Model</dt><dd>' + esc(t.selected_model || 'Varsayılan') + '</dd><dt>İnternet araştırması</dt><dd>' + (t.internet_search_enabled ? 'Açık' : 'Kapalı') + '</dd>' +
     (t.options && t.options.agent_mode ? '<dt>Ajan modu</dt><dd>Açık (bütçe: ' + esc({ dar: 'dar', normal: 'normal', genis: 'geniş' }[t.options.agent_budget] || 'normal') + ')</dd>' : "") +
+    (t.options && t.options.self_review ? '<dt>Kendini değerlendirme</dt><dd>Açık</dd>' : "") +
     (t.approval_required ? '<dt>Onay</dt><dd>Her çalıştırmadan önce istenir</dd>' : "") + '</dl>';
   var cs = t.condition_state || {};
   if (t.task_type === 'conditional' && cs.last_check_note) h += '<div class="tk-hint" style="margin-top:6px">Son koşul kontrolü: ' + esc(fmtTime(cs.last_check_at, t.timezone)) + ', ' + esc(cs.last_check_note) + '</div>';

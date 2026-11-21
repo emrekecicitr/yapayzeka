@@ -174,7 +174,7 @@ class TaskManager:
             'schedule_text': sch.describe(row['task_type'], cfg, row['timezone']),
             'options': {k: opts.get(k) for k in
                         ('research_depth', 'output_format', 'output_length', 'notify_pref', 'condition',
-                         'agent_mode', 'agent_budget')
+                         'agent_mode', 'agent_budget', 'self_review')
                         if k in opts},
             'timezone': row['timezone'],
             'created_at': _iso(row['created_at']),
@@ -265,6 +265,8 @@ class TaskManager:
             opts['notify_pref'] = _choice(p.get('notify_pref'), config.NOTIFY_PREFS, 'notify_pref', 'hepsi')
         if 'agent_mode' in p or existing_opts is None:
             opts['agent_mode'] = _bool(p.get('agent_mode'), 'agent_mode')
+        if 'self_review' in p or existing_opts is None:
+            opts['self_review'] = _bool(p.get('self_review'), 'self_review')
         if 'agent_budget' in p or existing_opts is None:
             opts['agent_budget'] = _choice(p.get('agent_budget'), config.AGENT_BUDGETS, 'agent_budget', 'normal')
         return opts

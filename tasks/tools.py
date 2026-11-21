@@ -139,8 +139,8 @@ def _fmt_number(v):
     return format(v, '.12g')
 
 
-def safe_calc(expr):
-    """Aritmetik ifadeyi GUVENLI degerlendirir. Donus: 'ifade = sonuc'. Hata: ToolError."""
+def calc_value(expr):
+    """Aritmetik ifadeyi GUVENLI degerlendirir, SAYISAL deger (int|float) dondurur. Hata: ToolError."""
     if not isinstance(expr, str):
         raise ToolError('İfade metin olmalı.')
     e = expr.strip().replace('\u2212', '-').replace('\u00d7', '*').replace('\u00f7', '/').replace('^', '**')
@@ -160,10 +160,19 @@ def safe_calc(expr):
     except (SyntaxError, ValueError, RecursionError, MemoryError):
         raise ToolError('İfade anlaşılamadı. Örnek: (120 * 1.2) / 3')
     try:
-        v = _ev(tree)
+        return _ev(tree)
     except RecursionError:
         raise ToolError('İfade çok karmaşık.')
+
+
+def safe_calc(expr):
+    """Aritmetik ifadeyi GUVENLI degerlendirir. Donus: 'ifade = sonuc'. Hata: ToolError."""
+    v = calc_value(expr)
     return f'{expr.strip()[:120]} = {_fmt_number(v)}'
+
+
+def format_number(v):
+    return _fmt_number(v)
 
 
 # ======================================================================
