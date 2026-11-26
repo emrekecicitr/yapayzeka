@@ -75,6 +75,7 @@ AGENT_SEARCHES = {'dar': 2, 'normal': 4, 'genis': 6}     # en çok internet aram
 AGENT_READS = {'dar': 1, 'normal': 3, 'genis': 5}        # en çok sayfa okuma
 AGENT_CALCS = 8                                          # en çok hesaplama
 AGENT_RECALLS = 2                                        # en çok önceki sonuç okuma
+AGENT_MEMORY_SEARCHES = 3                                # en çok kalıcı hafıza araması (hafıza yerel ve ücretsizdir)
 AGENT_MAX_TURNS_HARD = 15
 AGENT_TURN_MAX_TOKENS = _int('TASKS_AGENT_TURN_TOKENS', 700, 200, 2000)
 AGENT_OBS_CHARS = 2400          # tek araç sonucunun modele verilen en çok karakteri
@@ -101,3 +102,63 @@ RESEARCH_DEPTHS = ('hizli', 'normal', 'derin')
 OUTPUT_FORMATS = ('rapor', 'ozet', 'madde', 'tablo')
 OUTPUT_LENGTHS = ('kisa', 'orta', 'uzun')
 NOTIFY_PREFS = ('hepsi', 'sadece_hatalar', 'kapali')
+
+# Kalici hafiza (projeler, kararlar, belgeler, notlar, otomatik sonuc kayitlari). Hicbir sinir sessizce asilmaz.
+MEMORY_MAX_PROJECTS = _int('TASKS_MEMORY_MAX_PROJECTS', 100, 1, 2000)
+MEMORY_MAX_ITEMS = _int('TASKS_MEMORY_MAX_ITEMS', 5000, 10, 100000)
+MEMORY_MAX_AUTO_ITEMS = _int('TASKS_MEMORY_MAX_AUTO', 500, 0, 50000)   # otomatik kayitlarin tavani (en eskiler silinir)
+MEMORY_AUTO_INGEST = _int('TASKS_MEMORY_AUTO_INGEST', 1, 0, 1)         # 1: projeye bagli gorevlerin sonuclari hafizaya yazilir
+MEMORY_NAME_CHARS = 80
+MEMORY_TITLE_CHARS = 160
+MEMORY_BODY_CHARS = 20000
+MEMORY_TAGS_MAX = 8
+MEMORY_TAG_CHARS = 30
+MEMORY_SEARCH_LIMIT = 8          # arac ve API varsayilan/azami sonuc sayisi
+MEMORY_SNIPPET_CHARS = 420
+MEMORY_TOOL_CHARS = 2400         # hafiza arac sonucunun modele verilen en cok karakteri
+
+# Eylem yetenegi (onayli eylemler). VARSAYILAN KAPALI; acmak icin TASKS_ACTIONS_ENABLED=1. KILL SWITCH: TASKS_ACTIONS_ENABLED=0 iken eylem araci modele sunulmaz,
+# onaylama/calistirma reddedilir ve tum mevcut davranis (istemler dahil) eylemsiz surumle ayni kalir.
+# Anahtar HER cagrida ortamdan okunur (yeniden baslatma gerekmez).
+def actions_enabled():
+    return _int('TASKS_ACTIONS_ENABLED', 0, 0, 1) == 1          # varsayilan KAPALI: bilerek acilir
+
+
+def actions_approval_token():
+    """Eylem API'sine uzaktan erisim belirteci (en az 24 karakter gecerli). Bos: yalnizca yerel istek. Her cagrida okunur."""
+    return (os.environ.get('TASKS_ACTIONS_APPROVAL_TOKEN') or '').strip()
+
+
+ACTIONS_WORKSPACE = os.environ.get('TASKS_WORKSPACE') or '~/ai_workspace'     # dosya eylemlerinin tek izinli klasoru
+ACTIONS_PER_RUN = _int('TASKS_ACTIONS_PER_RUN', 3, 1, 20)                    # bir calistirmada en cok oneri
+ACTIONS_PER_DAY = _int('TASKS_ACTIONS_PER_DAY', 20, 1, 1000)                 # son 24 saatte toplam oneri
+ACTIONS_PENDING_MAX = _int('TASKS_ACTIONS_PENDING_MAX', 10, 1, 200)          # bekleyen (onaylanmamis) oneri tavani
+ACTIONS_ARGS_BYTES = _int('TASKS_ACTIONS_ARGS_BYTES', 32768, 1024, 262144)   # kanonik argumanlarin en cok bayti
+ACTIONS_TTL_SECONDS = _int('TASKS_ACTIONS_TTL', 86400, 60, 30 * 86400)       # onay suresi (varsayilan 24 saat)
+ACTIONS_EXEC_STALE_SECONDS = _int('TASKS_ACTIONS_EXEC_STALE', 60, 10, 3600)  # 'executing' bu sureden eskiyse surec olmus sayilir
+ACTIONS_FILE_MAX_BYTES = _int('TASKS_ACTIONS_FILE_MAX', 20000, 100, 262144)  # file_write icerik siniri (bayt)
+ACTIONS_FILE_EXTS = ('.txt', '.md', '.csv', '.json')                         # file_write uzanti izin listesi
+ACTIONS_MEMORY_NOTE = _int('TASKS_ACTIONS_MEMORY', 1, 0, 1)                  # 1: tamamlanan eylem, projeli gorevde otomatik nota yazilir
+
+
+# Otonom orkestrasyon (hedef -> bagimliliklarla alt gorevler -> sentez). VARSAYILAN KAPALI; acmak icin TASKS_GOALS_ENABLED=1.
+# Kapaliyken (kill switch) planlama, baslatma ve izleme DURUR (hicbir sey kaybolmaz; acilinca kaldigi yerden surer).
+def goals_enabled():
+    return _int('TASKS_GOALS_ENABLED', 0, 0, 1) == 1
+
+
+GOALS_MAX_NODES = _int('TASKS_GOALS_MAX_NODES', 8, 1, 20)               # plandaki alt gorev tavani (sentez dahil degil)
+GOALS_MAX_ACTIVE = _int('TASKS_GOALS_MAX_ACTIVE', 2, 1, 10)             # ayni anda etkin (planlanan/onay bekleyen/yurutulen) hedef
+GOALS_PER_DAY = _int('TASKS_GOALS_PER_DAY', 10, 1, 200)                 # son 24 saatte olusturulabilecek hedef
+GOALS_PARALLEL = _int('TASKS_GOALS_PARALLEL', 2, 1, 6)                  # bir hedefte ayni anda calisan alt gorev
+GOALS_TIMEOUT_SECONDS = _int('TASKS_GOALS_TIMEOUT', 6 * 3600, 600, 7 * 86400)   # onaydan itibaren toplam sure
+GOALS_MAX_RETRIES = _int('TASKS_GOALS_MAX_RETRIES', 2, 0, 10)           # hedef basina elle yeniden deneme hakki
+GOALS_PLAN_ATTEMPTS = 2                                                 # gecersiz plan icin model cagrisi hakki
+GOALS_PLAN_LEASE_SECONDS = 180                                          # planlama kilidi (surec olurse sure dolunca yeniden alinir)
+GOALS_LAUNCH_STALE_SECONDS = 60                                         # 'launching' bu sureden eskiyse surec olmus sayilir
+GOALS_DESCRIPTION_CHARS = 2000
+GOALS_NODE_TITLE_CHARS = 80
+GOALS_NODE_DESC_CHARS = 1500
+GOALS_NODE_RESULT_CHARS = 20000                                         # alt gorev sonucunun hedefte saklanan en cok karakteri
+GOALS_CONTEXT_CHARS = 6000                                              # bir alt goreve verilen onceki sonuclarin toplam siniri
+GOALS_MAX_DEPS = 6

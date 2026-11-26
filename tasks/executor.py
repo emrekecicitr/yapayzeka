@@ -16,7 +16,7 @@ import json
 import logging
 import time
 
-from . import config, conditions, review, util
+from . import config, conditions, goal_ctx, review, util
 from .agent import AgentError, AgentRunner
 from .bridge import LLMError
 from .tools import description_urls, norm_url
@@ -47,6 +47,21 @@ TASK_RULES = (
 )
 
 
+_RULES_OLD = ('E-posta göndermek, dosya silmek, ödeme yapmak, hesap veya dış sistem değiştirmek gibi eylemleri ASLA yapamazsın '
+              've yapmış gibi davranma; böyle bir istek varsa bunun bu sürümde desteklenmediğini kısaca belirt. ')
+_RULES_NEW = ('Hiçbir eylemi KENDİN yapamazsın. Ajan modunda yalnızca çalışma klasörüne dosya, e-posta TASLAĞI veya takvim dosyası '
+              'ÖNEREBİLİRSİN; kullanıcı onaylayana kadar öneri HENÜZ YAPILMAMIŞTIR ve yapılmış gibi anlatma. E-posta göndermek, dosya silmek, '
+              'ödeme yapmak, hesap veya dış sistem değiştirmek mümkün değildir ve yapmış gibi davranma; böyle bir istek varsa bunun '
+              'desteklenmediğini kısaca belirt. ')
+# Eylem sistemi ACIKKEN kullanilan kurallar (kapaliyken TASK_RULES birebir ayni kalir).
+TASK_RULES_ACTIONS = TASK_RULES.replace(_RULES_OLD, _RULES_NEW) if _RULES_OLD in TASK_RULES else TASK_RULES + ' ' + _RULES_NEW
+
+_ACTION_STATE = {'proposed': 'önerildi, onay bekliyor, HENÜZ YAPILMADI', 'approved': 'onaylandı, henüz çalıştırılmadı',
+                 'executing': 'onaylandı, çalıştırılıyor', 'succeeded': 'onaylandı ve tamamlandı', 'failed': 'onaylandı ama BAŞARISIZ oldu',
+                 'rejected': 'reddedildi, YAPILMADI', 'cancelled': 'iptal edildi, YAPILMADI', 'expired': 'süresi doldu, YAPILMADI',
+                 'outcome_unknown': 'sonucu belirsiz (kesinti oldu), elle kontrol edin'}
+
+
 class RunInterrupted(Exception):
     """Calistirma kontrollu olarak durdu (duraklatma/iptal/kilit kaybi). Hata degildir."""
 
@@ -74,12 +89,49 @@ def classify_error(exc):
 
 
 class Executor:
-    def __init__(self, mgr, runs, notifier, bridge, clock=time.time):
+    def __init__(self, mgr, runs, notifier, bridge, clock=time.time, memory=None, actions=None):
+        self.memory = memory          # kalici hafiza (memory.Memory) veya None
+        self.actions = actions        # eylem servisi (actions.Actions) veya None
         self.mgr = mgr
         self.runs = runs
         self.notifier = notifier
         self.bridge = bridge
         self.clock = clock
+
+    # ---- eylem yetenegi yardimcilari (kapaliyken hicbiri bir sey eklemez)
+    def _actions_on(self):
+        return self.actions is not None and config.actions_enabled()
+
+    def _rules(self):
+        return TASK_RULES_ACTIONS if self._actions_on() else TASK_RULES
+
+    def _action_rows(self, run_id):
+        if self.actions is None or run_id is None:
+            return []
+        try:
+            return self.actions.for_run(run_id)
+        except Exception:  # noqa: BLE001 - eylem sistemi bozulsa da rapor uretilir
+            return []
+
+    @staticmethod
+    def _action_line(r):
+        first = (r.get('preview') or '').split('\n', 1)[0]
+        return f"#{r['id']} {r['tool']}: {util.truncate(first, 160)} ({_ACTION_STATE.get(r['status'], r['status'])})"
+
+    def _actions_note(self, run_id):
+        """Modele (rapor/denetci kaniti) verilen, GERCEK eylem durumunu anlatan blok. Eylem yoksa ''."""
+        rows = self._action_rows(run_id)
+        if not rows:
+            return ''
+        return ('\nEYLEM ÖNERİLERİ (sistem kaydı; yalnızca bu durumlar gerçektir, kullanıcı onaylamadıkça HİÇBİR ŞEY YAPILMAMIŞTIR):\n'
+                + '\n'.join('- ' + self._action_line(r) for r in rows))
+
+    def _actions_section(self, steps):
+        rid = steps[0]['run_id'] if steps else None
+        rows = self._action_rows(rid)
+        if not rows:
+            return ''
+        return '## Önerilen eylemler\n' + '\n'.join(f'{i}. {self._action_line(r)}' for i, r in enumerate(rows, 1))
 
     # ==================================================================
     # ana giris: worker bu fonksiyonu cagirir
@@ -203,7 +255,10 @@ class Executor:
             self.runs.create_steps(tid, rid, self._initial_steps(task, opts))
         else:
             self.runs.reset_interrupted_steps(rid)
-        trigger_ctx = (self.mgr.get_state(tid) or {}).get('trigger_context', '') if run.get('trigger') == 'condition' else ''
+        _st = self.mgr.get_state(tid) or {}
+        trigger_ctx = _st.get('trigger_context', '') if run.get('trigger') == 'condition' else ''
+        if not trigger_ctx and _st.get('goal_context'):
+            trigger_ctx = _st['goal_context']        # orkestrasyon: onceki alt gorev sonuclari (guvenilmeyen veri)
         ctx.trigger_context = trigger_ctx
         total_guard = 0
         while True:
@@ -242,6 +297,16 @@ class Executor:
         row = self.mgr.get_row(tid)
         self.notifier.notify(
             row, 'completed', f"Görev tamamlandı: {row['title']}", util.truncate(_plain(result), 220), run_id=rid)
+        self._remember(row, run, result)
+
+    def _remember(self, row, run, result):
+        """Projeye bagli gorevin sonucunu kalici hafizaya yazar. Hafiza bir IYILESTIRMEDIR: hata gorevi ASLA bozmaz."""
+        if self.memory is None:
+            return
+        try:
+            self.memory.ingest_result(row['id'], row['title'], run['id'], run.get('run_no'), result)
+        except Exception as e:  # noqa: BLE001
+            logging.getLogger('tasks').warning('gorev %s: hafizaya yazilamadi (%s)', row['id'], type(e).__name__)
 
     # ------------------------------------------------------------------
     def _initial_steps(self, task, opts):
@@ -307,7 +372,7 @@ class Executor:
         if len(existing) > 1:  # plan daha once uretilip kaydedilmis (kesinti plan adimi bitmeden oldu)
             return json.dumps([{'kind': s['kind'], 'name': s['name']} for s in existing], ensure_ascii=False)
         msgs = [
-            {'role': 'system', 'content': TASK_RULES + ' Şimdi görevi 3 ila 6 küçük, yönetilebilir adıma böl. '
+            {'role': 'system', 'content': self._rules() + ' Şimdi görevi 3 ila 6 küçük, yönetilebilir adıma böl. '
              'İzinli adım türleri: search (internet araştırması' + (' - bu görevde AÇIK' if internet else ' - bu görevde KAPALI, kullanma')
              + '), analyze, compare, classify. Son rapor adımını SEN EKLEME; sistem ekler. '
              'Yalnızca şu JSON ile yanıtla: {"steps":[{"kind":"search|analyze|compare|classify","name":"kısa Türkçe ad",'
@@ -431,7 +496,8 @@ class Executor:
             self.mgr.set_progress(tid, owner, text, pct)
         runner = AgentRunner(self.bridge, self.runs, self.clock,
                              checkpoint=lambda: self._checkpoint(tid, owner, ctx.deadline),
-                             progress=progress, cache_get=self._cache_get, cache_put=self._cache_put)
+                             progress=progress, cache_get=self._cache_get, cache_put=self._cache_put, memory=self.memory,
+                             actions=self.actions)
         try:
             out = runner.run(ctx.task, ctx.run, ctx.opts, ctx.deadline, trigger_context=ctx.trigger_context)
         except AgentError as e:
@@ -469,7 +535,7 @@ class Executor:
         instruction = spec.get('instruction') or step['name']
         prompt = self._build_context_block(ctx, step, budget_scale=0.55)
         msgs = [
-            {'role': 'system', 'content': TASK_RULES + f" Şu an çok adımlı bir görevin '{step['name']}' adımını yapıyorsun. "
+            {'role': 'system', 'content': self._rules() + f" Şu an çok adımlı bir görevin '{step['name']}' adımını yapıyorsun. "
              'Yalnızca bu adımın çıktısını kısa, net ve kaynağa dayalı yaz; nihai rapor yazma.'},
             {'role': 'user', 'content': prompt + f"\n\nBU ADIMIN GÖREVİ: {util.truncate(instruction, 400)}"},
         ]
@@ -484,7 +550,7 @@ class Executor:
         length = ctx.opts.get('output_length', 'orta')
         prompt = self._build_context_block(ctx, step, budget_scale=0.8)
         memory = self.bridge.memory_note()
-        sys_text = (TASK_RULES + ' Şimdi kullanıcıya sunulacak NİHAİ çıktıyı yaz. '
+        sys_text = (self._rules() + ' Şimdi kullanıcıya sunulacak NİHAİ çıktıyı yaz. '
                     + _FORMAT_HINT.get(fmt, _FORMAT_HINT['rapor']) + ' ' + _LENGTH_HINT.get(length, '')
                     + ' Kaynak adreslerini metne yazma; kaynak listesi sistem tarafından eklenir.'
                     + (' Önceki adımdaki ajan bulgularında geçen [n] kaynak numaraları, sistemin ekleyeceği "Kaynaklar" listesindeki '
@@ -492,6 +558,9 @@ class Executor:
                     + (' Arama verisi eksik veya filtrelendiyse bunu açıkça belirt.' if ctx.flagged_any else ''))
         if memory:
             sys_text += '\n' + memory
+        if self._actions_note(ctx.run['id']):
+            sys_text += (' Önerilen eylemler EYLEM ÖNERİLERİ bloğundaki durumdadır: onaylanmamış hiçbir eylemi yapılmış, gönderilmiş ya da '
+                         'kaydedilmiş gibi yazma; "önerildi, henüz yapılmadı" de. Sistem eylem listesini ayrıca ekler.')
         msgs = [{'role': 'system', 'content': sys_text}, {'role': 'user', 'content': prompt}]
         r = self._llm(ctx, msgs, max_tokens=_LENGTH_TOKENS.get(length, 1400), purpose='report')
         text = util.strip_dashes(r.text.strip())
@@ -753,7 +822,7 @@ class Executor:
             elif s['kind'] in ('plan', 'review'):
                 continue
             elif s['kind'] == 'agent':
-                out = self._format_agent_output(out)
+                out = self._format_agent_output(out) + self._actions_note(ctx.run['id'])
                 label = 'ADIM_CIKTISI'
             else:
                 label = 'ADIM_CIKTISI'
@@ -768,8 +837,10 @@ class Executor:
         parts = [f"GÖREV TANIMI (kullanıcı amacı):\n<<<GOREV\n{desc}\n>>>",
                  f'Bugünün tarihi: {self.bridge.now_text()}']
         if ctx.trigger_context:
-            tc, _ = util.sanitize_untrusted(ctx.trigger_context, 1500)
-            parts.append(f'TETİKLEYEN KOŞUL (veri):\n<<<ADIM_CIKTISI\n{tc}\n>>>')
+            _is_goal, _body = goal_ctx.split(ctx.trigger_context)
+            tc, _ = util.sanitize_untrusted(_body, goal_ctx.cap(_is_goal))
+            _label = 'ÖNCEKİ ALT GÖREV SONUÇLARI (veri)' if _is_goal else 'TETİKLEYEN KOŞUL (veri)'
+            parts.append(f'{_label}:\n<<<ADIM_CIKTISI\n{tc}\n>>>')
         used = sum(len(p) for p in parts)
         blocks = self._prior_blocks(ctx, steps, step['step_no'])
         remaining = max(1200, max_chars - used)
@@ -831,6 +902,9 @@ class Executor:
         notes = review.format_notes(review_out)
         if notes:
             text += '\n\n' + notes
+        acts = self._actions_section(steps)
+        if acts:
+            text += '\n\n' + acts
         sources = self._collect_sources(steps)
         if sources:
             text += '\n\n## Kaynaklar\n' + '\n'.join(f"{i}. {s['title']} ({s['url']})" for i, s in enumerate(sources, 1))

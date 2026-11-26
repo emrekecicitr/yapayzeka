@@ -22,7 +22,9 @@ log = logging.getLogger('tasks')
 
 class TaskRuntime:
     def __init__(self, mgr, runs, notifier, executor, clock=time.time,
-                 max_concurrent=None, tick_seconds=None):
+                 max_concurrent=None, tick_seconds=None, actions=None, goals=None):
+        self.goals = goals         # orkestrasyon servisi (hedef planlama/yurutme bakimi) veya None
+        self.actions = actions     # eylem servisi (bakim: sure dolumu, cokme sonrasi cozum) veya None
         self.mgr = mgr
         self.runs = runs
         self.notifier = notifier
@@ -100,6 +102,10 @@ class TaskRuntime:
                 row, 'awaiting_approval', f"Onay bekleniyor: {row['title']}",
                 'Görevin çalışma zamanı geldi. Çalıştırmak için onaylayın.',
                 dedupe_key=f"approval:{tid}:{int(row['next_run_at'] or now)}")
+        if self.actions is not None:
+            self.actions.tick()          # asla istisna firlatmaz
+        if self.goals is not None:
+            self.goals.tick(sync=sync)   # asla istisna firlatmaz; kill switch kapaliyken hicbir sey yapmaz
         with self._lock:
             free = self.max_concurrent - len(self._active)
         claims = self.mgr.claim_due(self.owner, free, now) if free > 0 else []

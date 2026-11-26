@@ -17,11 +17,14 @@ import re
 import time
 
 from . import config, util
+from . import memory as memory_mod
 
-ACTIONS = ('search', 'read_page', 'calculate', 'recall', 'finish')
+ACTIONS = ('search', 'read_page', 'calculate', 'recall', 'memory_search', 'propose_action', 'finish')
 _ALIASES = {'web_search': 'search', 'read': 'read_page', 'fetch': 'read_page', 'open_page': 'read_page',
             'readpage': 'read_page', 'calc': 'calculate', 'calculator': 'calculate', 'done': 'finish',
-            'final': 'finish', 'answer': 'finish', 'final_answer': 'finish'}
+            'final': 'finish', 'answer': 'finish', 'final_answer': 'finish', 'memory': 'memory_search',
+            'search_memory': 'memory_search', 'memory_lookup': 'memory_search', 'hafiza': 'memory_search',
+            'propose': 'propose_action', 'suggest_action': 'propose_action'}
 _CTRL = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
 _URL_RE = re.compile(r'https?://[^\s<>"\')\]]+')
 
@@ -205,7 +208,13 @@ def _clean(s, max_len):
     return s[:max_len]
 
 
-_TOP_LEVEL_ARG_KEYS = ('query', 'url', 'expression', 'expr', 'findings', 'answer', 'summary', 'result', 'confidence')
+_TOP_LEVEL_ARG_KEYS = ('query', 'url', 'expression', 'expr', 'findings', 'answer', 'summary', 'result', 'confidence',
+                       'project', 'kind')
+
+
+def available_actions():
+    """Modele sunulabilecek eylem adlari. Eylem sistemi kapaliyken 'propose_action' YOKTUR (kapali davranis birebir ayni)."""
+    return tuple(a for a in ACTIONS if a != 'propose_action' or config.actions_enabled())
 
 
 def validate_args(action, args):
@@ -232,6 +241,29 @@ def validate_args(action, args):
         return {'expression': _clean(e, config.AGENT_CALC_EXPR_CHARS)}
     if action == 'recall':
         return {}
+    if action == 'memory_search':
+        q = args.get('query')
+        if not isinstance(q, str) or not q.strip():
+            raise ToolError('memory_search için "query" (metin) gerekli.')
+        out = {'query': _clean(re.sub(r'\s+', ' ', q), 200)}
+        proj = args.get('project')
+        if isinstance(proj, str) and proj.strip():
+            out['project'] = _clean(proj, 80)
+        kind = args.get('kind')
+        if isinstance(kind, str) and kind.strip():
+            k = memory_mod.normalize_kind(kind)
+            if k is None:
+                raise ToolError('kind şunlardan biri olmalı: ' + ', '.join(memory_mod.KINDS) + ' (ya da boş bırak).')
+            out['kind'] = k
+        return out
+    if action == 'propose_action':
+        tool = args.get('tool')
+        if not isinstance(tool, str) or not tool.strip():
+            raise ToolError('propose_action için \"tool\" (eylem aracı adı) gerekli.')
+        a = args.get('args')
+        if not isinstance(a, dict):
+            raise ToolError('propose_action için \"args\" (nesne) gerekli.')
+        return {'tool': tool.strip()[:40], 'args': a}
     if action == 'finish':
         f = args.get('findings', args.get('answer', args.get('summary', args.get('result'))))
         if not isinstance(f, str) or not f.strip():
@@ -254,8 +286,8 @@ def parse_action(text):
         return None, '"action" alanı eksik.'
     a = re.sub(r'[\s\-]+', '_', action.strip().lower())
     a = _ALIASES.get(a, a)
-    if a not in ACTIONS:
-        return None, f'Bilinmeyen eylem. Geçerli eylemler: {", ".join(ACTIONS)}.'
+    if a not in available_actions():
+        return None, f'Bilinmeyen eylem. Geçerli eylemler: {", ".join(available_actions())}.'
     args = obj.get('args')
     if args is None:
         args = {k: obj[k] for k in _TOP_LEVEL_ARG_KEYS if k in obj}
@@ -291,17 +323,20 @@ def description_urls(text):
 
 class Outcome:
     """Bir arac cagrisinin sonucu. status: ok | error | rejected"""
-    __slots__ = ('status', 'text', 'flagged', 'new_sources')
+    __slots__ = ('status', 'text', 'flagged', 'new_sources', 'taint', 'action_id')
 
-    def __init__(self, status, text, flagged=0, new_sources=None):
+    def __init__(self, status, text, flagged=0, new_sources=None, taint=False, action_id=None):
         self.status = status
         self.text = text
         self.flagged = flagged
         self.new_sources = new_sources or []
+        self.taint = taint              # bu sonuc modele guvenilmeyen (web/otomatik kayit) icerik tasidi mi
+        self.action_id = action_id      # propose_action: olusan/var olan eylem kaydinin kimligi
 
 
 class ToolContext:
-    def __init__(self, task, run, runs, bridge, budgets, internet, depth, cache_get, cache_put, clock=time.time):
+    def __init__(self, task, run, runs, bridge, budgets, internet, depth, cache_get, cache_put, clock=time.time,
+                 memory=None, actions=None):
         self.task = task
         self.run = run
         self.runs = runs
@@ -312,11 +347,16 @@ class ToolContext:
         self.cache_get = cache_get
         self.cache_put = cache_put
         self.clock = clock
+        self.memory = memory           # kalici hafiza (memory.Memory) veya None
+        self.actions = actions         # eylem servisi (actions.Actions) veya None: None ise propose_action sunulmaz/reddedilir
+        self.tainted = False           # calismada guvenilmeyen icerik (web/arama/okunan sayfa/otomatik kayit/onceki sonuc) modele girdi mi
         self.sources = []              # [{'n','title','url'}] sirali ve benzersiz; modelin [n] atiflari buna gore
         self._src_keys = set()
         # normallestirilmis adres -> kanonik adres. Okuma HER ZAMAN kanonik adresle yapilir (modelin yazdigi varyantla degil).
         self.allowed_urls = {norm_url(u): u for u in description_urls((task.get('title') or '') + ' ' + (task.get('description') or ''))}
-        self.counts = {'search': 0, 'read_page': 0, 'calculate': 0, 'recall': 0}
+        self.counts = {'search': 0, 'read_page': 0, 'calculate': 0, 'recall': 0, 'memory_search': 0}
+        if actions is not None:
+            self.counts['propose_action'] = 0
         self.seen_calls = set()
         self.flagged_total = 0
         self.evidence_ok = 0           # basarili search/read_page sayisi
@@ -328,26 +368,44 @@ class ToolContext:
         for t in turns:
             a = t['action']
             args = t.get('args') or {}
-            if t['status'] != 'rejected' and a in self.counts:
+            if t['status'] != 'rejected' and a in self.counts and (a != 'propose_action' or t['status'] == 'ok'):
                 self.counts[a] += 1
             if t['status'] != 'rejected':
                 self.seen_calls.add(self._call_key(a, args))
             for s in args.get('_sources') or []:
                 self._add_source(s.get('title'), s.get('url'))
+            if t['status'] != 'rejected' and self._replay_taint(a, args, t):
+                self.tainted = True
             self.flagged_total += int(t.get('flagged') or 0)
             if a in ('search', 'read_page'):
                 if t['status'] == 'ok':
                     self.evidence_ok += 1
                 elif t['status'] == 'error':
                     self.evidence_fail += 1
-            elif a in ('calculate', 'recall') and t['status'] == 'ok' and not (t.get('observation') or '').startswith('Bu görevin önceki başarılı'):
+            elif a in ('calculate', 'recall', 'memory_search') and t['status'] == 'ok' and not (t.get('observation') or '').startswith(
+                    ('Bu görevin önceki başarılı', memory_mod.NO_RESULT_TEXT)):
                 self.other_ok += 1
+
+    @staticmethod
+    def _replay_taint(a, args, t):
+        """Kayitli bir turun modele guvenilmeyen icerik verip vermedigi (kesinti sonrasi kirlenmeyi YENIDEN kurar)."""
+        if args.get('_taint') is True:
+            return True
+        if t['status'] != 'ok':
+            return False
+        if a in ('search', 'read_page'):
+            return True
+        if a == 'recall':
+            return not (t.get('observation') or '').startswith('Bu görevin önceki başarılı')
+        if a == 'memory_search':
+            return '_taint' not in args and not (t.get('observation') or '').startswith(memory_mod.NO_RESULT_TEXT)
+        return False
 
     @staticmethod
     def _call_key(action, args):
         clean = {k: v for k, v in (args or {}).items() if not str(k).startswith('_')}
-        if action == 'search':
-            clean = {'query': ' '.join(str(clean.get('query', '')).lower().split())}
+        if action in ('search', 'memory_search'):
+            clean = dict(clean, query=' '.join(str(clean.get('query', '')).lower().split()))
         elif action == 'read_page':
             clean = {'url': norm_url(str(clean.get('url', '')))}
         return action + ':' + json.dumps(clean, sort_keys=True, ensure_ascii=False)
@@ -378,10 +436,12 @@ class ToolContext:
         if key in self.seen_calls:
             return Outcome('rejected', 'Bu çağrıyı zaten yaptın, sonucu yukarıda. Farklı bir şey dene ya da finish çağır.')
         fn = {'search': self._search, 'read_page': self._read_page, 'calculate': self._calculate,
-              'recall': self._recall}[action]
+              'recall': self._recall, 'memory_search': self._memory_search, 'propose_action': self._propose_action}[action]
         out = fn(args)
         if out.status != 'rejected':
             self.seen_calls.add(key)
+        if out.taint:
+            self.tainted = True
         return out
 
     def _budget_check(self, action):
@@ -420,7 +480,7 @@ class ToolContext:
         if listed:
             text += '\n\nKAYNAK LİSTESİ (alıntı numaraları):\n' + '\n'.join(f"[{s['n']}] {s['title']} ({s['url']})" for s in listed[:8])
         self.flagged_total += flagged
-        return Outcome('ok', text, flagged, [{'title': s['title'], 'url': s['url']} for s in listed])
+        return Outcome('ok', text, flagged, [{'title': s['title'], 'url': s['url']} for s in listed], taint=True)
 
     def _read_page(self, args):
         if not self.internet:
@@ -443,7 +503,7 @@ class ToolContext:
         self.flagged_total += flagged
         reg = next((s for s in self.sources if norm_url(s['url']) == norm_url(url)), None)
         head = f"[{reg['n']}] {reg['title']} ({url})\n" if reg else f'({url})\n'
-        return Outcome('ok', head + cleaned, flagged)
+        return Outcome('ok', head + cleaned, flagged, taint=True)
 
     def _calculate(self, args):
         rej = self._budget_check('calculate')
@@ -474,4 +534,56 @@ class ToolContext:
             parts.append(f"Çalıştırma #{r['run_no']} ({when}):\n{cleaned}")
         self.flagged_total += flagged
         self.other_ok += 1
-        return Outcome('ok', '\n\n'.join(parts), flagged)
+        return Outcome('ok', '\n\n'.join(parts), flagged, taint=True)
+
+    def _propose_action(self, args):
+        """Eylemi YALNIZCA ONERIR (kayit olusturur). Calistirmaz; calistirma onaydan sonra sistem kodunda olur."""
+        from .actions import ActionLimit
+        from .fsafe import ActionError
+        if self.actions is None or not config.actions_enabled():
+            return Outcome('rejected', 'Eylem önerisi şu an kullanılamıyor. Bulgularını finish ile bildir.')
+        rej = self._budget_check('propose_action')
+        if rej:
+            return Outcome('error', 'Bu çalıştırmada eylem önerisi sınırı doldu. Elindeki verilerle finish çağır.')
+        try:
+            p = self.actions.propose(self.task, self.run, args['tool'], args['args'], self.tainted)
+        except ActionError as e:
+            return Outcome('error', f'Eylem önerisi geçersiz: {util.truncate(util.redact(str(e)), 300)} Düzeltip yeniden öner ya da finish çağır.')
+        except ActionLimit as e:
+            return Outcome('error', util.truncate(util.redact(str(e)), 300) + ' Başka eylem önerme; finish çağır.')
+        except Exception as e:  # noqa: BLE001 - eylem sistemi bozulsa da ajan cokmez
+            return Outcome('error', f'Eylem önerisi kaydedilemedi ({type(e).__name__}). Finish çağır.')
+        self.counts['propose_action'] += 1
+        if p.duplicate:
+            text = f'Bu eylem zaten önerilmişti (#{p.id}, durum: {p.status}). Tekrar önermene gerek yok.'
+        else:
+            text = (f'Eylem önerisi #{p.id} kaydedildi ve kullanıcı onayı bekliyor. HENÜZ YAPILMADI: onaylanmadıkça hiçbir şey '
+                    'çalıştırılmaz. Bulgularında bunu "önerildi, henüz yapılmadı" diye belirt.')
+        return Outcome('ok', text + '\nÖnizleme:\n' + util.truncate(p.preview, 600), action_id=p.id)
+
+    def _memory_search(self, args):
+        if self.memory is None:
+            return Outcome('rejected', 'Kalıcı hafıza şu an kullanılamıyor. Başka bir araç kullan ya da finish çağır.')
+        rej = self._budget_check('memory_search')
+        if rej:
+            return rej
+        self.counts['memory_search'] += 1
+        project_id = None
+        if args.get('project'):
+            p = self.memory.find_project(args['project'])
+            if p is None:
+                return Outcome('error', f"Hafızada '{util.truncate(args['project'], 40)}' adlı proje yok. "
+                                        'Projeyi belirtmeden ara ya da farklı bir ad dene.')
+            project_id = p['id']
+        try:
+            hits = self.memory.search(args['query'], project_id=project_id, kind=args.get('kind'))
+        except Exception as e:  # noqa: BLE001 - hafiza hatasi ajani cokertmez; model hatayi gorur
+            return Outcome('error', f'Hafıza araması başarısız oldu ({type(e).__name__}). Başka bir yol dene.')
+        text = self.memory.render_hits(hits, args['query'])
+        cleaned, flagged = util.sanitize_untrusted(text, config.MEMORY_TOOL_CHARS)
+        self.flagged_total += flagged
+        if hits:
+            self.other_ok += 1
+        # kullanicinin elle yazdigi kayitlar guvenilir; otomatik kayit ve gorev sonuclari (web kaynakli olabilir) kirletir
+        taint = any(h.get('source') != 'user' or h.get('kind') == 'result' for h in hits)
+        return Outcome('ok', cleaned, flagged, taint=taint)

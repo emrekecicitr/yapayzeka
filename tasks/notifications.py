@@ -37,8 +37,8 @@ class Notifications:
 
     # ------------------------------------------------------------ olusturma
     def _wanted(self, task_row, kind):
-        if kind == 'awaiting_approval':
-            return True  # kullanici onayi gerektigi icin her zaman uretilir
+        if kind in ('awaiting_approval', 'action_pending', 'action_unknown'):
+            return True  # kullanici onayi/mudahalesi gerektigi icin her zaman uretilir
         if not self.prefs()['enabled']:
             return False
         pref = (jload(task_row.get('options'), {}) or {}).get('notify_pref', 'hepsi')
